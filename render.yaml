@@ -1,0 +1,61 @@
+services:
+  - type: web
+    name: venomscan-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./infra/docker/Dockerfile.backend
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: API_BASE
+        sync: false
+      - key: WEB_BASE
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: ALLOW_REGISTRATION
+        value: "true"
+      - key: LOGIN_STATE_BACKEND
+        value: memory
+      - key: TASK_MODE
+        value: inline
+      - key: SCAN_DEFAULT_PROFILE
+        value: safe
+      - key: SCAN_MAX_REQUESTS
+        value: "60"
+      - key: SCAN_MAX_SECONDS
+        value: "45"
+      - key: SCAN_RPS
+        value: "2"
+      - key: SCAN_OSINT_ENABLED
+        value: "true"
+      - key: SCAN_HISTORY_ENABLED
+        value: "true"
+      - key: SCAN_SPA_ENABLED
+        value: "false"
+      - key: SCAN_DIRS_ENABLED
+        value: "false"
+      - key: OOB_ENABLED
+        value: "false"
+      - key: NUCLEI_ENABLED
+        value: "false"
+      - key: PLUGIN_DIRS
+        value: ""
+      - key: ALLOW_PRIVATE_TARGETS
+        value: "false"
+      - key: AI_AUTO_TRIAGE
+        value: "false"
+      - key: AI_REPORT_AUTOFILL
+        value: "false"
+      - key: REPORT_LINK_HOURS
+        value: "24"

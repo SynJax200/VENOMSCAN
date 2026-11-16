@@ -1,0 +1,232 @@
+{
+  "version": "2026-11-15",
+  "source": "Curated offline snapshot for education and triage. Verify against NVD before acting.",
+  "entries": [
+    {
+      "product": "apache http server",
+      "aliases": ["apache", "httpd", "apache httpd"],
+      "min": "2.4.49",
+      "max": "2.4.50",
+      "cves": [
+        {
+          "id": "CVE-2021-41773",
+          "severity": "critical",
+          "cvss": 9.8,
+          "summary": "Path traversal and possible remote code execution in Apache HTTP Server 2.4.49 and 2.4.50 when files outside the document root are reachable.",
+          "cwe": ["CWE-22"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2021-41773"]
+        },
+        {
+          "id": "CVE-2021-42013",
+          "severity": "critical",
+          "cvss": 9.8,
+          "summary": "Incomplete fix for CVE-2021-41773 enabling path traversal and remote code execution in Apache HTTP Server 2.4.49 and 2.4.50.",
+          "cwe": ["CWE-22"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2021-42013"]
+        }
+      ]
+    },
+    {
+      "product": "nginx",
+      "aliases": ["openresty"],
+      "min": "0.6.18",
+      "max": "1.20.0",
+      "cves": [
+        {
+          "id": "CVE-2021-23017",
+          "severity": "high",
+          "cvss": 7.7,
+          "summary": "Off-by-one error in the nginx DNS resolver allows a crafted DNS response to overwrite memory, potentially causing worker process crashes or code execution.",
+          "cwe": ["CWE-193"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2021-23017"]
+        }
+      ]
+    },
+    {
+      "product": "jquery",
+      "aliases": [],
+      "min": "1.2.0",
+      "max": "3.5.0",
+      "max_inclusive": false,
+      "cves": [
+        {
+          "id": "CVE-2020-11022",
+          "severity": "medium",
+          "cvss": 6.1,
+          "summary": "jQuery before 3.5.0 passes HTML containing untrusted script from htmlPrefilter to DOM methods, enabling cross-site scripting in applications that insert user input.",
+          "cwe": ["CWE-79"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2020-11022"]
+        },
+        {
+          "id": "CVE-2020-11023",
+          "severity": "medium",
+          "cvss": 6.1,
+          "summary": "jQuery before 3.5.0 allows cross-site scripting when a self-closing HTML element from untrusted input is passed to DOM manipulation methods.",
+          "cwe": ["CWE-79"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2020-11023"]
+        }
+      ]
+    },
+    {
+      "product": "wordpress",
+      "aliases": [],
+      "min": "3.7",
+      "max": "5.8.2",
+      "cves": [
+        {
+          "id": "CVE-2022-21661",
+          "severity": "high",
+          "cvss": 8.0,
+          "summary": "WordPress core versions before 5.8.3 are vulnerable to SQL injection through WP_Query when specific plugins or themes process untrusted input.",
+          "cwe": ["CWE-89"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2022-21661"]
+        }
+      ]
+    },
+    {
+      "product": "log4j",
+      "aliases": ["apache log4j", "log4j2"],
+      "min": "2.0",
+      "max": "2.14.1",
+      "cves": [
+        {
+          "id": "CVE-2021-44228",
+          "severity": "critical",
+          "cvss": 10.0,
+          "summary": "Log4Shell: JNDI features in Log4j 2 allow remote code execution via attacker-controlled log messages.",
+          "cwe": ["CWE-502"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2021-44228"]
+        }
+      ]
+    },
+    {
+      "product": "spring framework",
+      "aliases": ["spring"],
+      "min": "5.3.0",
+      "max": "5.3.17",
+      "cves": [
+        {
+          "id": "CVE-2022-22965",
+          "severity": "critical",
+          "cvss": 9.8,
+          "summary": "Spring4Shell: data binding in Spring MVC can lead to remote code execution on JDK 9+ deployments packaged as WARs.",
+          "cwe": ["CWE-94"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2022-22965"]
+        }
+      ]
+    },
+    {
+      "product": "spring framework",
+      "aliases": ["spring"],
+      "min": "5.2.0",
+      "max": "5.2.18",
+      "cves": [
+        {
+          "id": "CVE-2022-22965",
+          "severity": "critical",
+          "cvss": 9.8,
+          "summary": "Spring4Shell: data binding in Spring MVC can lead to remote code execution on JDK 9+ deployments packaged as WARs.",
+          "cwe": ["CWE-94"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2022-22965"]
+        }
+      ]
+    },
+    {
+      "product": "apache tomcat",
+      "aliases": ["tomcat"],
+      "min": "9.0.0",
+      "max": "9.0.30",
+      "cves": [
+        {
+          "id": "CVE-2020-1938",
+          "severity": "critical",
+          "cvss": 9.8,
+          "summary": "Ghostcat: the Tomcat AJP connector allows file read and inclusion from the web application root, potentially leading to code execution.",
+          "cwe": ["CWE-269"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2020-1938"]
+        }
+      ]
+    },
+    {
+      "product": "openssl",
+      "aliases": [],
+      "min": "1.0.1",
+      "max": "1.0.1f",
+      "cves": [
+        {
+          "id": "CVE-2014-0160",
+          "severity": "high",
+          "cvss": 7.5,
+          "summary": "Heartbleed: a missing bounds check in the OpenSSL TLS heartbeat extension leaks process memory including keys and session data.",
+          "cwe": ["CWE-125"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2014-0160"]
+        }
+      ]
+    },
+    {
+      "product": "drupal",
+      "aliases": [],
+      "min": "7.0",
+      "max": "7.57",
+      "cves": [
+        {
+          "id": "CVE-2018-7600",
+          "severity": "critical",
+          "cvss": 9.8,
+          "summary": "Drupalgeddon2: multiple subsystems allow remote code execution through crafted requests to Drupal 7 before 7.58.",
+          "cwe": ["CWE-94"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2018-7600"]
+        }
+      ]
+    },
+    {
+      "product": "drupal",
+      "aliases": [],
+      "min": "8.0",
+      "max": "8.5.0",
+      "max_inclusive": false,
+      "cves": [
+        {
+          "id": "CVE-2018-7600",
+          "severity": "critical",
+          "cvss": 9.8,
+          "summary": "Drupalgeddon2: multiple subsystems allow remote code execution through crafted requests to Drupal 8 before 8.3.9 and 8.4.x before 8.4.6.",
+          "cwe": ["CWE-94"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2018-7600"]
+        }
+      ]
+    },
+    {
+      "product": "php",
+      "aliases": [],
+      "min": "7.3.0",
+      "max": "7.3.26",
+      "cves": [
+        {
+          "id": "CVE-2021-21702",
+          "severity": "medium",
+          "cvss": 6.5,
+          "summary": "NULL pointer dereference in PHP SOAP client responses can crash the process in PHP before 7.3.27 and 7.4.15.",
+          "cwe": ["CWE-476"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2021-21702"]
+        }
+      ]
+    },
+    {
+      "product": "iis",
+      "aliases": ["microsoft iis"],
+      "min": "10.0",
+      "max": "10.0",
+      "cves": [
+        {
+          "id": "CVE-2021-31166",
+          "severity": "high",
+          "cvss": 9.8,
+          "summary": "HTTP protocol stack remote code execution in Windows Server IIS 10 when handling crafted packets; patched in May 2021.",
+          "cwe": ["CWE-416"],
+          "refs": ["https://nvd.nist.gov/vuln/detail/CVE-2021-31166"]
+        }
+      ]
+    }
+  ]
+}

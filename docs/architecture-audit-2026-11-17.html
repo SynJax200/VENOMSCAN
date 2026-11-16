@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VENOMSCAN Architecture Audit — 17 November 2026</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm 17mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #172033;
+    font-size: 9.7pt;
+    line-height: 1.44;
+    margin: 0;
+  }
+  h1 { font-size: 25pt; line-height: 1.12; margin: 0 0 8mm; color: #0b2e2a; }
+  h2 { font-size: 15pt; margin: 9mm 0 3mm; color: #0b2e2a; border-bottom: 1.2pt solid #0f766e; padding-bottom: 1.6mm; }
+  h3 { font-size: 11pt; margin: 5mm 0 1.8mm; color: #134e4a; }
+  p { margin: 0 0 2.6mm; }
+  ul, ol { margin: 0 0 3mm 5mm; padding: 0; }
+  li { margin: 0 0 1.4mm; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 8.4pt; background: #f1f5f9; padding: 0.3mm 1mm; border-radius: 1mm; }
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: space-between; }
+  .eyebrow { font-size: 8.5pt; letter-spacing: 1.8pt; text-transform: uppercase; color: #0f766e; font-weight: 700; margin-bottom: 5mm; }
+  .subtitle { font-size: 13pt; color: #334155; max-width: 150mm; margin: 0 0 9mm; }
+  .cover-rule { height: 2.5mm; width: 45mm; background: #0f766e; margin: 0 0 8mm; }
+  .meta { border: 1pt solid #cbd5e1; border-left: 4pt solid #0f766e; padding: 4mm 5mm; background: #f8fafc; font-size: 9pt; }
+  .meta div { margin: 0 0 1.5mm; }
+  .meta b { display: inline-block; min-width: 33mm; color: #0b2e2a; }
+  .verdict { border: 1pt solid #f59e0b; background: #fffbeb; padding: 4mm 5mm; margin: 4mm 0 5mm; }
+  .verdict b { color: #92400e; }
+  .note { border-left: 3pt solid #0ea5e9; background: #f0f9ff; padding: 3mm 4mm; margin: 3mm 0 4mm; }
+  .warn { border-left: 3pt solid #dc2626; background: #fef2f2; padding: 3mm 4mm; margin: 3mm 0 4mm; }
+  .ok { border-left: 3pt solid #16a34a; background: #f0fdf4; padding: 3mm 4mm; margin: 3mm 0 4mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 8.3pt; page-break-inside: auto; }
+  thead { display: table-header-group; }
+  th { background: #0b2e2a; color: #ffffff; text-align: left; padding: 1.8mm 2mm; font-weight: 600; vertical-align: top; }
+  td { border-bottom: 0.5pt solid #dbe3ea; padding: 1.7mm 2mm; vertical-align: top; }
+  tr { page-break-inside: avoid; }
+  .tag { display: inline-block; font-size: 7.4pt; font-weight: 700; letter-spacing: 0.4pt; padding: 0.7mm 1.6mm; border-radius: 1.2mm; white-space: nowrap; }
+  .c1 { background: #dcfce7; color: #166534; }
+  .c2 { background: #fef3c7; color: #92400e; }
+  .c3 { background: #fee2e2; color: #991b1b; }
+  .p0 { background: #fee2e2; color: #991b1b; }
+  .p1 { background: #ffedd5; color: #9a3412; }
+  .p2 { background: #e0f2fe; color: #075985; }
+  .small { font-size: 8.5pt; color: #475569; }
+  .tight li { margin-bottom: 0.8mm; }
+  .page-break { page-break-before: always; }
+  .keeps { page-break-inside: avoid; }
+  .two { width: 100%; }
+  .two td { width: 50%; vertical-align: top; border: none; padding: 0 4mm 0 0; }
+  .two td:last-child { padding-right: 0; padding-left: 4mm; }
+  .kpi { display: flex; gap: 3mm; margin: 3mm 0 4mm; }
+  .kpi div { flex: 1; border: 0.8pt solid #cbd5e1; border-top: 3pt solid #0f766e; padding: 2.5mm; background: #ffffff; }
+  .kpi b { display: block; font-size: 15pt; color: #0b2e2a; line-height: 1.1; }
+  .kpi span { font-size: 7.8pt; color: #475569; }
+  .quote { font-style: italic; color: #334155; border-left: 2pt solid #94a3b8; padding-left: 3mm; margin: 2mm 0 3mm; }
+  .footer-note { font-size: 8pt; color: #64748b; margin-top: 3mm; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div>
+    <div class="eyebrow">Architecture audit · evidence-based</div>
+    <h1>VENOMSCAN</h1>
+    <div class="cover-rule"></div>
+    <div class="subtitle">Code-level audit of the reviewed 21-page assessment report, with explicit implementation status for every capability challenged in the client review.</div>
+    <div class="verdict">
+      <b>Audit verdict in one paragraph.</b> The reviewed PDF is a real output of the current engine, not a stale or fabricated artifact. Its strongest criticisms are also real: endpoint intelligence is noisy, API security is largely inventory or scaffold, observed response headers are collected but not printed, skipped checks are presented as completed “no finding”, and all four AI analyses were deterministic fallback rather than LLM output. The codebase also contains substantial, unit-tested foundations that the PDF does not demonstrate. Therefore a roughly 40% product-completeness estimate is directionally fair for a production-assurance platform. The gap is delivery and verification, not an absence of engineering.
+    </div>
+  </div>
+  <div class="meta">
+    <div><b>Prepared:</b> 17 November 2026</div>
+    <div><b>Audience:</b> Cyber Mind Space review (Sir) and project owner</div>
+    <div><b>Reviewed artifact:</b> <code>venomscan-www.cybermindspace.com-7388fcda.pdf</code>, 21 pages</div>
+    <div><b>Scan:</b> <code>7388fcda-f29d-4049-bab1-cb7709898d01</code>, profile <code>active</code>, 16 Nov 2026 18:23 UTC</div>
+    <div><b>Method:</b> source inspection, stored scan/DB evidence, report extraction, unit-test and type-check execution</div>
+    <div><b>Target traffic during audit:</b> none. No rescan was performed.</div>
+    <div><b>Source snapshot:</b> working tree at 17 Nov 2026; no git metadata in this workspace</div>
+  </div>
+</section>
+
+<div class="page-break"></div>
+<h2>1. Executive summary</h2>
+
+<p>The client review evaluated a PDF, not the implementation. This audit is the missing code-level layer. It separates three questions that the review correctly treated as one:</p>
+<ul class="tight">
+  <li><b>Does the capability exist in code?</b> For several challenged areas, yes, and it has dedicated tests.</li>
+  <li><b>Was the capability actually exercised and proven in the reviewed report?</b> For AI, endpoint verification, IDOR/function authorization and API probing, no.</li>
+  <li><b>Does the report communicate what really happened?</b> No in four material places: unverified endpoint candidates are counted as inventory, skipped checks appear as completed, observed headers are omitted, and fallback text is headed “AI analyst note”.</li>
+</ul>
+
+<div class="kpi">
+  <div><b>469</b><span>unit tests collected; full suite passed</span></div>
+  <div><b>0 / 20</b><span>JS-derived endpoints verified in the reviewed active scan</span></div>
+  <div><b>0</b><span>LLM analyses; four fallback records</span></div>
+  <div><b>2</b><span>authz checks skipped but shown as “no finding”</span></div>
+</div>
+
+<h3>1.1 What Sir got right</h3>
+<ol class="tight">
+  <li><b>AI is not demonstrated.</b> The report calls deterministic text an “AI analyst note”. The database records all four analyses as <code>provider=fallback, model=deterministic</code>. The running API currently reports <code>provider_configured=False</code>. Sir is right about the delivered result; the nuance is that provider adapters, grounding, retrieval, caching and fallback logic exist and are tested.</li>
+  <li><b>Endpoint intelligence is noisy.</b> The scan stored 73 endpoints; 38 came from JavaScript. The inventory includes <code>${this.canonicalString()}</code>, <code>${e.key.getCollectionPath().canonicalString()}</code>, <code>/_next</code>, <code>/_app</code>, <code>/_document</code>, <code>/_error</code>, <code>/_next/image</code> and bundled JavaScript chunks. Endpoint verification probed 20 and received 20 × 404. Every persisted JS candidate that was not probed remains in the inventory as “unverified”.</li>
+  <li><b>API security is mostly scaffold.</b> The reviewed target exposed no OpenAPI document, no GraphQL endpoint and no JWT samples. GraphQL probing is hardcoded to zero. BOLA appears only as a manual candidate matrix. This is not an API security assessment engine yet.</li>
+  <li><b>Evidence does not appear in the PDF.</b> The engine captured the full observed response, including headers, status and body excerpt. The PDF printed only the request object. This is a rendering defect, not a collection defect.</li>
+  <li><b>Student learning is absent from the PDF.</b> It exists in the application (curriculum, walkthroughs, exercises, progress, API and UI) and does not exist in any report renderer.</li>
+</ol>
+
+<h3>1.2 What the PDF also hides</h3>
+<ul class="tight">
+  <li><b>Skipped is not “no finding”.</b> The checks table says IDOR and function-level authorization produced “no finding”, while scan events say both were skipped because no usable test accounts were configured. The target also exhausted its 120-request budget; the DOM XSS probe aborted. Those outcomes are not shown in the checks table.</li>
+  <li><b>“Live” includes 404 responses.</b> The report says “41 live”. Six probe 404 results, one <code>robots.txt</code> 404 and six bundled <code>.js</code> files with HTTP 200 are counted as live because any non-null status is treated as live. A 404 is a fetched response, not an endpoint that exists.</li>
+  <li><b>Only one low finding is plausible on this target, but coverage is incomplete.</b> The target already sends CSP, HSTS, <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code>, <code>Permissions-Policy</code> and <code>X-Frame-Options</code>; only COOP was missing. That explains the single hardening finding. It does not excuse the skipped and budget-aborted checks being presented as completed.</li>
+</ul>
+
+<div class="note"><b>Artifact validity.</b> The reviewed 21-page report is the current active-profile output (scan started 16 Nov 2026 18:23 UTC). A later safe-profile 19-page report is not evidence that these defects were fixed: the safe profile exercises less JavaScript and fewer checks. The defects below are present in the same code path used to produce the reviewed artifact.</div>
+
+<h2>2. Reviewed artifact and audit method</h2>
+
+<table>
+  <thead><tr><th style="width:30%">Item</th><th>Observed value</th></tr></thead>
+  <tr><td>Report</td><td><code>venomscan-www.cybermindspace.com-7388fcda.pdf</code>, 21 pages</td></tr>
+  <tr><td>Scan</td><td><code>7388fcda-f29d-4049-bab1-cb7709898d01</code>; active profile; explicit per-scan consent recorded</td></tr>
+  <tr><td>Execution</td><td>120 requests, 81.5 seconds, 34 checks, 1 finding (missing HTTP hardening headers, low, risk 2.4/10, verified)</td></tr>
+  <tr><td>Inventory</td><td>73 endpoints: 24 crawl, 38 JavaScript, 7 probes, 2 directory hits, 1 robots, 1 root; 41 “live”, 32 “unverified”</td></tr>
+  <tr><td>JS intake</td><td>6 JavaScript files; 770 raw candidate strings before filtering and scope checks</td></tr>
+  <tr><td>Endpoint verification</td><td>32 candidates, 20 probed, 20 answered 404, 0 verified, stop reason <code>probe-cap</code></td></tr>
+  <tr><td>AI analyses</td><td>4 rows: summary, next_steps, explanation, fp_triage; all <code>provider=fallback</code>, <code>model=deterministic</code></td></tr>
+  <tr><td>Authz checks</td><td>IDOR and function-level authorization both skipped: “no test accounts configured”; report table shows “no finding”</td></tr>
+  <tr><td>Observed finding evidence</td><td>DB contains full response headers for the finding, including CSP, HSTS, referrer policy, permissions policy and the absence of COOP; PDF prints only <code>{"method":"GET","url":"..."}</code></td></tr>
+  <tr><td>External intelligence</td><td>crt.sh read timeout; Wayback HTTP 503; key-gated sources not exercised</td></tr>
+</table>
+
+<h3>2.1 Verification performed for this audit</h3>
+<ul class="tight">
+  <li><code>uv run ruff check .</code> → <b>All checks passed.</b></li>
+  <li><code>uv run python -m pytest tests/unit -q</code> → <b>469 tests collected and passed</b> (no failures).</li>
+  <li><code>cd apps/web &amp;&amp; npx tsc --noEmit</code> → <b>no type errors.</b></li>
+  <li>Read the engine, API, report renderer and web client at the file/line references in this document.</li>
+  <li>Queried the database that produced the reviewed scan for endpoints, statuses, findings, evidence, AI provenance and scan events.</li>
+  <li>Extracted the PDF with layout-aware text extraction and compared it with stored evidence.</li>
+  <li>Did <b>not</b> re-scan the target. Did <b>not</b> decrypt or display credentials. No target traffic was generated.</li>
+</ul>
+
+<div class="warn"><b>Limit of this audit.</b> Passing tests prove that the implemented behavior matches the unit-test fixtures. They do not prove that a check detects a real vulnerability, that a route discovered in JavaScript exists, or that an LLM produces useful analysis. Those require controlled integration tests against authorized applications and a configured provider.</div>
+
+<h2>3. The client’s five concerns, adjudicated</h2>
+
+<h3>A. “AI was not actually implemented” — partially valid</h3>
+<p><b>Delivered behavior:</b> valid criticism. The reviewed report contains no LLM output. All four analyses were produced by the deterministic fallback. The finding note is rendered under the heading “AI analyst note” without a provenance label.</p>
+<p><b>Code reality:</b> the AI subsystem is present and tested: provider adapters for OpenAI-compatible endpoints, Anthropic and Ollama; schema-constrained completion; a grounding validator that rejects invented URLs, CVEs and references; context retrieval; prompt versioning; analysis cache; deterministic fallback for every analysis kind; and an assistant path that refuses out-of-scope targets. Relevant files: <code>engine/venomscan_engine/ai/provider.py</code>, <code>ai/grounding.py</code>, <code>ai/features.py</code>, <code>ai/fallback.py</code>, <code>apps/api/venomscan_api/services/ai_service.py</code>. Tests: <code>tests/unit/ai/test_ai_engine.py</code>, <code>test_ai_context.py</code>, <code>tests/unit/api/test_ai_api.py</code>.</p>
+<p><b>Classification:</b> <span class="tag c2">Class 2 — partially implemented / not reliably verified</span>. The engine is implemented; the live capability is not configured or proven. Calling fallback output “AI” is a reporting defect and must stop.</p>
+
+<h3>B. Endpoint intelligence noise — valid</h3>
+<p>This is a genuine defect with a direct code cause, not merely a display problem.</p>
+<ul class="tight">
+  <li><code>crawl/js.py:29-36</code> removes every <code>${...}</code> expression before testing for regex noise. A JavaScript template such as <code>${this.canonicalString()}</code> therefore becomes an empty string, passes the filter and is normalized into a route.</li>
+  <li><code>crawl/js.py:12-18</code> blocks images, CSS and fonts but not <code>.js</code> or <code>.mjs</code>. Bundled Next.js chunks with HTTP 200 are stored as endpoints.</li>
+  <li>There is no framework-path classification. <code>/_next</code>, <code>/_app</code>, <code>/_document</code>, <code>/_error</code>, <code>/_not-found</code> and asset namespaces all pass through.</li>
+  <li><code>intel/endpoints.py:26-30</code> then treats <code>${...}</code> as an identifier and collapses unrelated expressions into <code>/{id}</code>, inventing parameters named <code>this</code> and <code>e</code>.</li>
+  <li>There is no rejection ledger. A candidate that is probed and returns 404 remains in the inventory as “unverified” rather than “rejected”.</li>
+</ul>
+<p><b>Evidence:</b> 38 JS endpoints; the list includes all framework paths above; 20 probes produced 20 × 404; 32 candidates remain unverified; the report still prints “Attack surface (73 endpoints)”.</p>
+<p><b>Classification:</b> <span class="tag c3">Class 3 for framework-aware classification and candidate rejection</span>; <span class="tag c2">Class 2 for the extraction pipeline as a whole</span>.</p>
+
+<h3>C. API security is mostly scaffold — valid for this target and for the engine</h3>
+<p>The target exposed no API specification and no GraphQL endpoint. The engine’s behavior at this boundary is weaker than the label suggests:</p>
+<ul class="tight">
+  <li>OpenAPI/Swagger documents are discovered on common paths and summarized when present. On this target: 0 documents, 0 routes, 0 operations.</li>
+  <li>JWT hygiene is offline analysis of observed tokens. No tokens were observed.</li>
+  <li>GraphQL candidate discovery exists, but the result is explicitly initialized with <code>"probed": 0, "confirmed": []</code> in <code>intel/api.py:179-199</code>. Safe introspection is not implemented.</li>
+  <li>BOLA is a candidate matrix for manual review; the report itself calls it “non-destructive scaffold; no requests performed” (<code>renderers.py</code> API inventory section).</li>
+  <li>IDOR and function-level authorization are real checks with nine unit tests, but they did not execute in the reviewed scan.</li>
+</ul>
+<p><b>Classification:</b> <span class="tag c2">Class 2 — partial</span>; the active GraphQL and BOLA verification pieces are <span class="tag c3">Class 3 — not implemented</span>.</p>
+
+<h3>D. Vulnerability evidence is weak — partially valid, with a precise reason</h3>
+<p>The evidence collector is not the weak point. The finding in the database contains a complete observed response: URL, status 200, elapsed time, size, redirect chain, body excerpt and the full header map. The COOP absence is proven from that map.</p>
+<p>The PDF renderer is the weak point: <code>renderers.py:1033</code> and <code>renderers.py:1129-1135</code> select <code>finding.request_evidence or finding.response_evidence</code>. Because a request object exists, the response object is never printed. The reader sees only the method and URL, exactly as Sir observed.</p>
+<p>The impact text is specific about the attack class (“cross-origin documents can keep a window opener reference, enabling XS-Leak and Spectre-style cross-origin attacks”) but does not state the precondition or the business consequence. A better wording is: “An attacker-controlled cross-origin page opened by a signed-in user can retain a window reference to the portal and probe cross-origin state or timing, potentially disclosing authentication state or accessible resources. This check proves the header is absent; it does not prove exploitability.”</p>
+<p><b>Additional reporting defect:</b> skipped and aborted checks are indistinguishable from completed checks. <code>apps/api/venomscan_api/services/reports.py:83-96</code> assigns only two results, <code>"finding"</code> or <code>"no finding"</code>, based on whether a finding exists. Scan events show IDOR and function authorization were skipped and DOM XSS aborted on budget. The checks table still reports them as completed with no finding.</p>
+<p><b>Classification:</b> <span class="tag c2">Class 2 — evidence capture is implemented; evidence presentation and coverage accounting are not reliable</span>.</p>
+
+<h3>E. Student learning is absent from the report — valid for the PDF</h3>
+<p>The capability exists in the product: curriculum tracks, per-check learning copy, finding walkthroughs, deterministic exercises, progress tracking, API endpoints and a learning UI (<code>apps/web/app/(app)/learning/page.tsx</code>, <code>apps/api/venomscan_api/routers/learning.py</code>, <code>engine/venomscan_engine/learning/</code>). It is covered by engine and API tests. No report renderer references learning; the PDF contains no learning section.</p>
+<p><b>Classification:</b> <span class="tag c1">Class 1 as an application capability</span>; <span class="tag c3">Class 3 as a report deliverable</span>.</p>
+
+<h2 class="page-break">4. The three explicit classifications</h2>
+
+<div class="ok"><b>Definition used here.</b> “Implemented and tested” means code exists and passes the repository’s unit tests. It does not mean field-proven. “Partially implemented / not reliably verified” means the code exists but the delivered artifact did not exercise it, its output is incomplete, or the result is gated by configuration or credentials. “Not implemented” means no functioning code path for the capability was found.</div>
+
+<h3>4.1 Class 1 — Implemented and tested</h3>
+<table>
+  <thead><tr><th style="width:24%">Capability</th><th style="width:42%">Evidence</th><th>What is actually proven</th></tr></thead>
+  <tr><td>Scope, safety client, budgets, cancellation</td><td><code>safety/http.py</code>, <code>safety/scope.py</code>; <code>tests/unit/engine/test_safety.py</code>, <code>test_http_client.py</code></td><td>Out-of-scope requests are rejected; request/time/RPS budgets exist; cancellation is checked; responses are normalized.</td></tr>
+  <tr><td>HTML crawl and surface extraction</td><td><code>crawl/crawler.py</code>, <code>crawl/html_extract.py</code>; <code>tests/unit/engine/test_crawl.py</code></td><td>Links, forms, scripts, robots/sitemap and embedded API documents are discovered with depth and page caps. JS route extraction is excluded from this row because of the defect register.</td></tr>
+  <tr><td>Passive configuration checks</td><td><code>checks/headers.py</code>, CORS, CSRF, cookies, secrets; <code>tests/unit/engine/test_checks.py</code>, <code>test_safe_checks.py</code>, <code>test_fp_corpus.py</code></td><td>Header/CSP/HSTS/clickjacking/CORS/CSRF/cookie/secret logic is implemented with fixtures and false-positive corpus coverage.</td></tr>
+  <tr><td>Active probe checks</td><td>SQLi time-based, SSRF, XXE (OOB), SSTI, LFI, DOM XSS, open redirect; <code>test_sqli_time.py</code>, <code>test_ssrf.py</code>, <code>test_xxe.py</code>, <code>test_dom_xss.py</code>, <code>test_oob.py</code></td><td>Probe logic and safety bounds are unit-tested. Real-target detection efficacy is not proven by these tests.</td></tr>
+  <tr><td>Finding verification contract</td><td><code>verify/verifier.py</code>; <code>tests/unit/engine/test_verifier.py</code></td><td>Deterministic check IDs are handled distinctly; required response evidence is enforced; confidence is capped when evidence is incomplete.</td></tr>
+  <tr><td>AI engine internals</td><td><code>ai/provider.py:28-60</code>, <code>ai/grounding.py:39-60</code>, <code>ai/features.py</code>, <code>ai/fallback.py</code>, <code>ai/assistant.py</code>; <code>tests/unit/ai/</code></td><td>Provider adapters, grounding rejection of invented URLs/CVEs/refs, retrieval, prompt versioning, fallback and assistant contracts are tested. Live provider quality is not proven.</td></tr>
+  <tr><td>Learning application</td><td><code>learning/</code>, <code>services/learning.py</code>, <code>routers/learning.py</code>, learning UI; <code>test_learning.py</code>, <code>test_learning_api.py</code></td><td>Walkthroughs, deterministic exercises, redaction, ownership checks and progress APIs are tested.</td></tr>
+  <tr><td>Report generation</td><td><code>reports/renderers.py</code>, <code>services/reports.py</code>; <code>test_reports.py</code></td><td>JSON, Markdown, HTML and PDF are generated; findings, checks, API inventory and methodology render. Content integrity defects are in the register.</td></tr>
+  <tr><td>Deployment packaging</td><td>Dockerfiles, prod compose, Caddy, installer and isolated rehearsal</td><td>Images build; a clean stack completed register → attest → scan → PDF in rehearsal. This is packaging evidence, not assessment efficacy.</td></tr>
+</table>
+
+<h3>4.2 Class 2 — Partially implemented or not reliably verified</h3>
+<table>
+  <thead><tr><th style="width:24%">Capability</th><th style="width:43%">Why it is not Class 1</th><th>Observed evidence</th></tr></thead>
+  <tr><td>Live AI analyses</td><td>No usable provider key; fallback is deterministic. Finding note is not labelled with provenance.</td><td>Four analyses with <code>provider=fallback</code>; running API <code>provider_configured=False</code>; PDF heading “AI analyst note”.</td></tr>
+  <tr><td>JS endpoint extraction and inventory</td><td>Template expressions and framework internals are accepted; <code>.js</code> assets are counted; no rejection ledger.</td><td>38 JS endpoints; 6 JS assets with 200; <code>${this.canonicalString()}</code>; <code>/_next</code>, <code>/_app</code>, <code>/_document</code>, <code>/_error</code>.</td></tr>
+  <tr><td>Endpoint verification outcome</td><td>Probes run, but 404 results are not used to reject candidates; “live” includes 404; stop at probe cap.</td><td>0 verified / 20 probed; 20 × 404; 32 unverified persisted; 41 “live” includes six probe 404s, one <code>robots.txt</code> 404 and six JS assets.</td></tr>
+  <tr><td>IDOR and function authorization</td><td>Implemented and tested but skipped in the reviewed scan; report does not show the skip.</td><td>Scan events: “no test accounts configured”; checks table: “no finding”; two credential rows existed in that instance, so decryption/wiring must be diagnosed.</td></tr>
+  <tr><td>API specification and JWT intelligence</td><td>Summarization exists only when a document/token is observed; none was observed.</td><td>0 docs, 0 routes, 0 operations, 0 JWT tokens.</td></tr>
+  <tr><td>BOLA analysis</td><td>Candidate matrix only; no cross-account request is performed.</td><td>Report labels it “manual review scaffold”.</td></tr>
+  <tr><td>Header/COOP finding evidence</td><td>Collection is complete; PDF prints request evidence only; impact lacks precondition and business consequence.</td><td>DB response evidence contains CSP/HSTS/referrer/permissions headers and no COOP; PDF evidence block contains only method and URL.</td></tr>
+  <tr><td>Coverage accounting</td><td>No per-check completed/skipped/failed outcome in the report.</td><td>IDOR and function authz skipped; DOM XSS aborted after budget exhaustion; all render as “no finding”.</td></tr>
+  <tr><td>External intelligence</td><td>Key-gated sources and transient upstream failures; partial results are not always promoted to the main findings narrative.</td><td>crt.sh timeout; Wayback 503; Censys/OTX/Shodan require keys and were not exercised.</td></tr>
+  <tr><td>Learning in deliverables</td><td>Exists in the app; absent from every report format.</td><td>No learning reference in <code>reports/</code>.</td></tr>
+</table>
+
+<h3>4.3 Class 3 — Not implemented</h3>
+<table>
+  <thead><tr><th style="width:30%">Capability</th><th style="width:38%">Current state</th><th>Consequence</th></tr></thead>
+  <tr><td>GraphQL probing and introspection</td><td>Candidate detection only; <code>intel/api.py:192-198</code> hardcodes zero probes and empty confirmed list.</td><td>The report can never show a confirmed GraphQL issue, even when a candidate exists.</td></tr>
+  <tr><td>Active BOLA / cross-tenant verification</td><td>Manual candidate matrix; no crafted cross-account request.</td><td>“BOLA” in the report means “worth reviewing”, not “tested”.</td></tr>
+  <tr><td>Framework-aware route classification</td><td>No Next.js/Nuxt/Vite known-path filter; no route-manifest ingestion.</td><td>Framework internals and chunks inflate the attack surface.</td></tr>
+  <tr><td>Verification rejection ledger</td><td>404 candidates are not persisted as rejected with a reason.</td><td>Unverified noise survives every report and count.</td></tr>
+  <tr><td>Per-check outcome model</td><td>Only “finding” or “no finding” is represented.</td><td>Skipped and budget-aborted checks overstate coverage.</td></tr>
+  <tr><td>Learning section in PDF</td><td>No renderer path.</td><td>Student outcome promised by the product is invisible to the client.</td></tr>
+  <tr><td>AI provider readiness gate</td><td>No blocking preflight or prominent status; fallback note still headed “AI”.</td><td>A keyless deployment silently ships non-AI output.</td></tr>
+  <tr><td>Dashboard/report enhancement phase</td><td>Deliberately deferred pending this audit.</td><td>Not counted as a defect; it is sequencing.</td></tr>
+</table>
+
+<h2 class="page-break">5. Defect register and root causes</h2>
+
+<table>
+  <thead><tr><th style="width:6%">ID</th><th style="width:9%">Priority</th><th style="width:27%">Defect and evidence</th><th style="width:30%">Root cause</th><th>Required correction and acceptance test</th></tr></thead>
+  <tr>
+    <td>D1</td><td><span class="tag p0">P0</span></td>
+    <td>JS candidate hygiene. 38 JS endpoints; template expressions, framework internals and bundles counted. Evidence: <code>crawl/js.py:29-36</code>; <code>crawl/js.py:12-18</code>; DB endpoint list.</td>
+    <td>Placeholders are stripped before validation; <code>.js</code> is not a blocked asset; no framework namespace list; <code>intel/endpoints.py:26-30</code> templatizes expressions.</td>
+    <td>Reject any candidate containing <code>${...}</code>; block <code>.js/.mjs</code>; reject <code>/_next</code>, <code>/_app</code>, <code>/_document</code>, <code>/_error</code>, <code>/_not-found</code>, <code>/_vercel</code>, <code>__nextjs</code>; reject one-character relative fragments and known component-only strings. Update <code>tests/unit/engine/test_crawl.py:111-118</code>, which currently asserts that <code>/api/users/${id}/posts</code> is kept. Acceptance: controlled Next.js fixture yields zero expressions, zero framework paths, zero JS bundles; every retained JS route has a status.</td>
+  </tr>
+  <tr>
+    <td>D2</td><td><span class="tag p0">P0</span></td>
+    <td>Unverified candidates survive verification; “live” includes 404. 20/20 probes returned 404; 32 remain unverified; 41 “live”. Evidence: <code>models.py:110-114</code>; <code>endpoint_verify.py:164-176</code>; endpoint table.</td>
+    <td>No rejected state; any non-null status maps to “live”; verifier only attaches status on success.</td>
+    <td>Add states <code>verified</code>, <code>not_found</code>, <code>skipped</code>, <code>unverified</code>; count only found statuses as live; retain rejected URLs in a separate ledger with reason; prevent rejected candidates from entering the inventory count and AI context. Acceptance: verified + not_found + skipped equals candidates; report counts match DB states; no 404 in “live”.</td>
+  </tr>
+  <tr>
+    <td>D3</td><td><span class="tag p0">P0</span></td>
+    <td>Observed response headers omitted from PDF. Evidence: <code>renderers.py:1033</code>, <code>renderers.py:1129-1135</code>; DB <code>response_evidence.headers</code>; PDF evidence block.</td>
+    <td>Renderer selects request evidence <i>or</i> response evidence.</td>
+    <td>Render both: request line, response status, elapsed, size, redirect chain, a compact header table, and a truncated/redacted body excerpt. Acceptance: every finding PDF page contains observed response status and headers; snapshot test asserts the COOP absence is visible.</td>
+  </tr>
+  <tr>
+    <td>D4</td><td><span class="tag p0">P0</span></td>
+    <td>Skipped or aborted checks reported as “no finding”. Evidence: <code>reports.py:83-96</code>; scan events for IDOR, function authz and DOM XSS budget exhaustion; PDF checks table.</td>
+    <td>Check model has no outcome; report infers completion from absence of a finding.</td>
+    <td>Engine emits per-check <code>completed|skipped|failed</code> with a reason; report model stores it; checks table displays it and a “Coverage limitations” block. Acceptance: an active scan with no accounts shows both authz checks as SKIPPED with the prerequisite reason; budget aborts show SKIPPED, not “no finding”.</td>
+  </tr>
+  <tr>
+    <td>D5</td><td><span class="tag p1">P1</span></td>
+    <td>Configured test accounts were not usable in the reviewed active scan. Evidence: scan events “no test accounts configured”; two credential rows existed before the scan; <code>runner.py:45-64</code>, <code>runner.py:248</code>.</td>
+    <td>Decrypt failure (secret drift), empty headers, or credentials not reaching the worker. Not diagnosed further because this audit did not decrypt credentials.</td>
+    <td>Add a secret-safe preflight that reports only <code>accounts_ready=N</code>, <code>identity_markers=N</code>, <code>decrypt_failures=N</code>; persist a scan warning and report line when fewer than two usable accounts exist; add an integration test covering credential creation → decrypt → active check execution. Acceptance: with two valid accounts, both authz checks report executed; with invalid credentials, report says SKIPPED with reason.</td>
+  </tr>
+  <tr>
+    <td>D6</td><td><span class="tag p1">P1</span></td>
+    <td>Fallback text labelled as AI. Evidence: <code>ai_service.py:640-647</code>; finding note heading <code>renderers.py:1138</code>; AI rows all fallback.</td>
+    <td>Finding-level provenance is not threaded into the report; analysis-level provenance exists but the note heading is unconditional.</td>
+    <td>Thread provenance into every finding note; render “Deterministic fallback — no LLM configured” when applicable; add a scan-level AI status banner. Acceptance: keyless scan contains zero “AI” labels on fallback text; configured scan labels provider/model.</td>
+  </tr>
+  <tr>
+    <td>D7</td><td><span class="tag p1">P1</span></td>
+    <td>GraphQL and API verification are not implemented. Evidence: <code>intel/api.py:179-199</code>; report 0/0 probed.</td>
+    <td>Only candidate collection was built; probing and confirmation were left as placeholders.</td>
+    <td>Implement safe GraphQL candidate probing with explicit active-consent gating, introspection query bounded and recorded, and confirmed/negative/skipped outcomes. Acceptance: a controlled GraphQL fixture yields one confirmed endpoint and a recorded introspection result; a non-GraphQL target yields a negative, not a hardcoded zero.</td>
+  </tr>
+  <tr>
+    <td>D8</td><td><span class="tag p2">P2</span></td>
+    <td>Learning absent from PDF. Evidence: no learning references in <code>reports/</code>; app capability exists.</td>
+    <td>Product capability and report deliverable were never connected.</td>
+    <td>Add a “Learning path for this scan” section: top findings mapped to what/why/verify, one exercise per finding, safe practice instructions. Acceptance: PDF includes deterministic, grounded learning content; no secret leakage.</td>
+  </tr>
+  <tr>
+    <td>D9</td><td><span class="tag p2">P2</span></td>
+    <td>Impact text lacks precondition and business consequence. Evidence: COOP impact string in <code>headers.py:14-35</code>.</td>
+    <td>Impact is written as an attack-class description, not a scenario.</td>
+    <td>For every finding, state attacker precondition, victim action, what is proven, what is not, and business consequence. Acceptance: reviewed hardening finding reads as a bounded scenario, not a generic header definition.</td>
+  </tr>
+</table>
+
+<h2>6. Recommended sequence (no dashboard work first)</h2>
+
+<p>This sequence follows the client’s instruction: audit first, then close integrity gaps before adding features. It also avoids re-scanning the target until the fixes are tested on controlled applications.</p>
+
+<h3>Gate 0 — Truthful reporting, no new target traffic</h3>
+<ul class="tight">
+  <li>Relabel all fallback output; show provider status on the report cover and every finding note (D6).</li>
+  <li>Add skipped/failed per-check outcomes and a coverage-limitations block (D4).</li>
+  <li>Render response evidence and observed headers (D3).</li>
+  <li>Acceptance: a keyless scan cannot present fallback as AI; no skipped check appears as “no finding”; every finding shows observed status and headers.</li>
+</ul>
+
+<h3>Phase 1 — Endpoint integrity</h3>
+<ul class="tight">
+  <li>Fix JS candidate validation, asset filtering and framework namespace filtering (D1).</li>
+  <li>Introduce the verification ledger and correct live/not-found semantics (D2).</li>
+  <li>Add a controlled Next.js fixture that reproduces the reviewed noise and proves rejection.</li>
+  <li>Acceptance: on the fixture, the inventory contains no <code>${...}</code>, no <code>/_next</code> family, no bundles, no 404 in “live”; every persisted JS route has a status and a reason.</li>
+</ul>
+
+<h3>Phase 2 — Authorization and API verification</h3>
+<ul class="tight">
+  <li>Fix and preflight test-account decryption; make authz execution visible (D5).</li>
+  <li>Implement GraphQL safe probing and replace hardcoded zeros (D7).</li>
+  <li>Keep BOLA as a manual workflow until a safe cross-account verification design is approved; label it accordingly.</li>
+  <li>Acceptance: two valid accounts produce executed IDOR/function checks with evidence; GraphQL fixture produces confirmed/negative outcomes; no cross-tenant request without explicit consent.</li>
+</ul>
+
+<h3>Phase 3 — Student learning in the deliverable</h3>
+<ul class="tight">
+  <li>Add the report learning section and exercises (D8).</li>
+  <li>Acceptance: the PDF teaches the top findings with grounded, deterministic exercises and verification steps.</li>
+</ul>
+
+<h3>Phase 4 — Dashboard and presentation enhancement</h3>
+<p>Only after the above. The client explicitly asked not to start here.</p>
+
+<h3>Dependencies that require the owner or client</h3>
+<table>
+  <thead><tr><th style="width:35%">Dependency</th><th>What it unlocks</th></tr></thead>
+  <tr><td>LLM provider key or a local Ollama endpoint</td><td>Live AI analyses with grounded citations; provider health test; AI quality evaluation.</td></tr>
+  <tr><td>Valid test-account headers and a stable app secret</td><td>IDOR and function-level authorization execution with identity-marker evidence.</td></tr>
+  <tr><td>Censys ID/secret, Shodan key, OTX key</td><td>Exposure and threat-intelligence enrichment beyond keyless DNS/RDAP/CT/urlscan.</td></tr>
+  <tr><td>Written approval for one controlled re-scan</td><td>Verification that the fixed pipeline behaves on the authorized target; no rescan is performed by this audit.</td></tr>
+  <tr><td>Approval for safe GraphQL introspection on authorized targets</td><td>GraphQL confirmation evidence without offensive exploitation.</td></tr>
+</table>
+
+<h2>7. What this audit does not claim</h2>
+<ul class="tight">
+  <li>It does not claim the reviewed target is free of vulnerabilities. A single low finding is consistent with its observed security headers, but several checks were skipped or aborted.</li>
+  <li>It does not claim the active probe checks are effective against real applications because unit tests passed. Efficacy requires controlled integration targets.</li>
+  <li>It does not claim the AI engine produces useful analysis in production; no live provider was configured in the reviewed artifact or the currently running API.</li>
+  <li>It does not claim the 19-page safe report supersedes the 21-page active report. The safe profile is not a fix for active-profile defects.</li>
+  <li>It does not include credential material, decrypted headers, API keys or target response bodies beyond the evidence already present in the reviewed scan.</li>
+</ul>
+
+<h2>8. Audit statement in the client’s requested format</h2>
+
+<table>
+  <thead><tr><th style="width:22%">Classification</th><th>Statement</th></tr></thead>
+  <tr>
+    <td><span class="tag c1">1. Implemented and tested</span></td>
+    <td>Scope/safety client and budgets; HTML crawl core; passive configuration checks; active probe check implementations; finding verification contract and response-evidence capture; AI engine internals (provider adapters, grounding, retrieval, cache, fallback, assistant); learning application; report format generation; deployment packaging. Evidence: 469 passing unit tests, clean Ruff and TypeScript checks, and the file/test references in section 4.1.</td>
+  </tr>
+  <tr>
+    <td><span class="tag c2">2. Partially implemented or not reliably verified</span></td>
+    <td>Live AI (fallback, no key, mislabelled); JS endpoint extraction/inventory; endpoint verification outcomes and live semantics; IDOR/function authorization (not executed); API specification and JWT intelligence (no observed data); BOLA (candidate scaffold only); response-evidence presentation; coverage/skip accounting; key-gated OSINT; learning in reports.</td>
+  </tr>
+  <tr>
+    <td><span class="tag c3">3. Not implemented</span></td>
+    <td>GraphQL probing/introspection confirmation; active BOLA/cross-tenant verification; framework-aware route classification; verification rejection ledger; per-check completed/skipped/failed reporting; learning section in PDF; AI provider readiness gate; dashboard/PDF enhancement phase (deferred by instruction).</td>
+  </tr>
+</table>
+
+<div class="warn"><b>Recommended client-facing position.</b> Do not defend the 21-page PDF as proof of the platform’s intended capabilities. Present it as an accurate record of what the scanner executed, acknowledge the defects above, and commit to Gate 0 and Phase 1 before any new feature claim. The code foundations are real; the evidence and product completeness are not yet at the level the report implies.</div>
+
+<p class="footer-note">Prepared from source inspection and stored evidence. Unit-test counts: 469 collected in <code>tests/unit</code>. Scan evidence: database records for scan <code>7388fcda-f29d-4049-bab1-cb7709898d01</code>. No target traffic was generated during this audit.</p>
+
+</body>
+</html>

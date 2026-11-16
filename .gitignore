@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+
+# Data
+*.db
+*.sqlite3
+storage/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Production compose env (contains secrets)
+infra/compose/.env.prod
+
+# Operator-supplied Nuclei binary mounted into the prod stack
+.nuclei-bin/
+
+# Deployment bundles (rebuild with release/ instructions; contain no secrets)
+release/
+
+# Generated scan artifacts and client data (never commit to a public repo)
+backups/
+recon-proof-*.json
+*-scan-report*.pdf
+cybermindspace-*.pdf
+demo-report.pdf
+sir-scan-*.txt
+VENOMSCAN-capability-audit-*.pdf
+
+# Nuclei runtime state
+.nuclei-cache/
+.nuclei-config/
+.uncover-config/

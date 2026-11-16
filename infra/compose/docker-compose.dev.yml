@@ -1,0 +1,35 @@
+name: venomscan-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: venom
+      POSTGRES_PASSWORD: venom
+      POSTGRES_DB: venomscan
+    ports:
+      - "55432:5432"
+    volumes:
+      - venomscan-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U venom -d venomscan"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "56379:6379"
+    volumes:
+      - venomscan-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  venomscan-pgdata:
+  venomscan-redisdata:

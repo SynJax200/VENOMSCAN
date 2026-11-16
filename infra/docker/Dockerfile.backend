@@ -1,0 +1,36 @@
+# Build context is the repository root.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PYTHONPATH=/app/apps/api:/app/engine:/app/workers \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+COPY engine/pyproject.toml engine/pyproject.toml
+COPY apps/api/pyproject.toml apps/api/pyproject.toml
+COPY workers/pyproject.toml workers/pyproject.toml
+COPY engine engine
+COPY apps/api apps/api
+COPY workers workers
+
+RUN uv sync --frozen --no-dev --all-packages
+# Chromium is used by the DOM-XSS probe and the PDF report renderer. Playwright's
+# driver needs libatomic before `--with-deps` can run.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
+RUN .venv/bin/playwright install --with-deps chromium
+
+RUN useradd --create-home --uid 10001 venom \
+    && mkdir -p /plugins /nuclei-templates \
+    && chown -R venom:venom /app /ms-playwright /plugins /nuclei-templates
+USER venom
+
+EXPOSE 8000
+# Render injects PORT; the prod compose stack has no PORT and keeps 8000.
+CMD ["sh", "-c", ".venv/bin/uvicorn venomscan_api.main:app --host 0.0.0.0 --port ${PORT:-8000} --app-dir apps/api"]

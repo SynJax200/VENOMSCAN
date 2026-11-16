@@ -1,0 +1,36 @@
+id: venomscan-security-headers
+
+info:
+  name: Baseline security headers missing
+  author: venomscan
+  severity: low
+  description: |
+    The response is missing one or more baseline security headers
+    (Content-Security-Policy, X-Frame-Options, X-Content-Type-Options,
+    Referrer-Policy). Safe, single read-only GET request.
+  remediation: |
+    Send Content-Security-Policy, X-Frame-Options (or frame-ancestors),
+    X-Content-Type-Options: nosniff and Referrer-Policy on HTML responses.
+  classification:
+    cwe-id: CWE-693
+  tags: headers,exposure,safe
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+    max-redirects: 2
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: dsl
+        dsl:
+          - "!contains(tolower(all_headers), 'content-security-policy') || !contains(tolower(all_headers), 'x-frame-options') || !contains(tolower(all_headers), 'x-content-type-options')"
+    extractors:
+      - type: dsl
+        dsl:
+          - "'csp=' + contains(tolower(all_headers), 'content-security-policy')"
+          - "'xfo=' + contains(tolower(all_headers), 'x-frame-options')"
+          - "'nosniff=' + contains(tolower(all_headers), 'x-content-type-options')"

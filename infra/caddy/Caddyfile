@@ -1,0 +1,51 @@
+# TLS reverse proxy for a self-hosted VENOMSCAN installation.
+# DOMAIN and ACME_EMAIL come from the compose environment; Caddy obtains and
+# renews certificates automatically when the domain is publicly resolvable.
+#
+# Local trial: DOMAIN=localhost makes Caddy issue an internal-CA certificate;
+# trust it with `docker compose ... cp caddy:/data/caddy/pki/authorities/local/root.crt .`
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# Server-sent events must not be buffered by the proxy.
+	handle /api/scans/*/events/stream* {
+		reverse_proxy api:8000 {
+			flush_interval -1
+		}
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle /healthz {
+		reverse_proxy api:8000
+	}
+
+	handle /docs* {
+		reverse_proxy api:8000
+	}
+
+	handle /openapi.json {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

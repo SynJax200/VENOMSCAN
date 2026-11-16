@@ -1,0 +1,198 @@
+name: venomscan
+
+# Production topology: Caddy terminates TLS, Next.js serves the UI, FastAPI is the
+# only process that talks to the datastores, and Celery workers execute scans.
+# Copy infra/compose/.env.prod.example to infra/compose/.env.prod before starting.
+#
+#   docker compose -f infra/compose/docker-compose.prod.yml up -d --build
+#
+# Nuclei is optional: drop a Linux nuclei binary into NUCLEI_BIN_DIR (mounted at
+# /opt/nuclei) and reviewed templates into NUCLEI_TEMPLATES_HOST, then set
+# NUCLEI_ENABLED=true and NUCLEI_BINARY=/opt/nuclei/nuclei. It only runs for
+# scans using the `active` profile, after explicit consent.
+
+x-backend-env: &backend-env
+  ENV: production
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in infra/compose/.env.prod}
+  API_BASE: ${API_BASE:-https://localhost}
+  SEED_TARGET_URL: ${SEED_TARGET_URL:-http://api:8000/demo}
+  WEB_BASE: ${WEB_BASE:-https://localhost}
+  CORS_ORIGINS: ${CORS_ORIGINS:-https://localhost}
+  COOKIE_SECURE: "true"
+  LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-5}
+  LOGIN_IP_MAX_ATTEMPTS: ${LOGIN_IP_MAX_ATTEMPTS:-20}
+  LOGIN_WINDOW_SECONDS: ${LOGIN_WINDOW_SECONDS:-300}
+  LOGIN_LOCKOUT_SECONDS: ${LOGIN_LOCKOUT_SECONDS:-900}
+  LOGIN_STATE_BACKEND: ${LOGIN_STATE_BACKEND:-redis}
+  ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-venom}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-venomscan}
+  REDIS_URL: redis://redis:6379/0
+  TASK_MODE: celery
+  ALLOW_PRIVATE_TARGETS: ${ALLOW_PRIVATE_TARGETS:-false}
+  SCAN_DEFAULT_PROFILE: ${SCAN_DEFAULT_PROFILE:-safe}
+  SCAN_MAX_REQUESTS: ${SCAN_MAX_REQUESTS:-120}
+  SCAN_MAX_SECONDS: ${SCAN_MAX_SECONDS:-90}
+  SCAN_RPS: ${SCAN_RPS:-4}
+  SCAN_OSINT_ENABLED: ${SCAN_OSINT_ENABLED:-true}
+  SCAN_HISTORY_ENABLED: ${SCAN_HISTORY_ENABLED:-true}
+  SHODAN_API_KEY: ${SHODAN_API_KEY:-}
+  CENSYS_API_ID: ${CENSYS_API_ID:-}
+  CENSYS_API_SECRET: ${CENSYS_API_SECRET:-}
+  OTX_API_KEY: ${OTX_API_KEY:-}
+  SCAN_SPA_ENABLED: ${SCAN_SPA_ENABLED:-false}
+  SCAN_DIRS_ENABLED: ${SCAN_DIRS_ENABLED:-true}
+  OOB_ENABLED: ${OOB_ENABLED:-true}
+  OOB_BIND_HOST: 0.0.0.0
+  OOB_BIND_PORT: ${OOB_BIND_PORT:-0}
+  OOB_PUBLIC_BASE_URL: ${OOB_PUBLIC_BASE_URL:-}
+  LLM_PROVIDER: ${LLM_PROVIDER:-openai_compat}
+  LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+  LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  AI_CACHE_TTL_SECONDS: ${AI_CACHE_TTL_SECONDS:-900}
+  AI_AUTO_TRIAGE: ${AI_AUTO_TRIAGE:-true}
+  AI_REPORT_AUTOFILL: ${AI_REPORT_AUTOFILL:-true}
+  REPORT_LINK_HOURS: ${REPORT_LINK_HOURS:-168}
+  UPSTREAM_PROXY_URL: ${UPSTREAM_PROXY_URL:-}
+  NUCLEI_ENABLED: ${NUCLEI_ENABLED:-false}
+  NUCLEI_BINARY: ${NUCLEI_BINARY:-/usr/local/bin/nuclei}
+  NUCLEI_TEMPLATES: ${NUCLEI_TEMPLATES:-/nuclei-templates}
+  NUCLEI_SEVERITIES: ${NUCLEI_SEVERITIES:-info,low,medium}
+  NUCLEI_RATE_LIMIT: ${NUCLEI_RATE_LIMIT:-10}
+  NUCLEI_TIMEOUT: ${NUCLEI_TIMEOUT:-60}
+  PLUGIN_DIRS: ${PLUGIN_DIRS:-/plugins}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-venom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-venomscan}
+    volumes:
+      - venomscan-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-venom} -d ${POSTGRES_DB:-venomscan}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - venomscan-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ${NUCLEI_TEMPLATES_HOST:-../../nuclei-templates}:/nuclei-templates:ro
+      - ${NUCLEI_BIN_DIR:-../../.nuclei-bin}:/opt/nuclei:ro
+      - ${PLUGIN_DIRS_HOST:-../../examples/plugins}:/plugins:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+    networks: [internal]
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
+    restart: unless-stopped
+    command:
+      [
+        "/app/.venv/bin/celery",
+        "-A",
+        "venomscan_workers.celery_app",
+        "worker",
+        "-l",
+        "info",
+        "--pool=prefork",
+        "--concurrency=2",
+        "--autoscale=6,2",
+        "--max-tasks-per-child=50",
+      ]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ${NUCLEI_TEMPLATES_HOST:-../../nuclei-templates}:/nuclei-templates:ro
+      - ${NUCLEI_BIN_DIR:-../../.nuclei-bin}:/opt/nuclei:ro
+      - ${PLUGIN_DIRS_HOST:-../../examples/plugins}:/plugins:ro
+    stop_grace_period: 60s
+    networks: [internal]
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        API_INTERNAL_URL: http://api:8000
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-ops@example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - venomscan-caddydata:/data
+      - venomscan-caddyconfig:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    networks: [internal]
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  venomscan-pgdata:
+  venomscan-redisdata:
+  venomscan-caddydata:
+  venomscan-caddyconfig:
