@@ -6,11 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from venomscan_api.config import get_settings
+from venomscan_api.config import Settings, get_settings
 from venomscan_api.crypto import decrypt, encrypt
 from venomscan_api.db import get_db
-from venomscan_api.deps import client_ip, get_current_user, require_csrf
-from venomscan_api.models import AiSetting, TestCredential, User
+from venomscan_api.deps import (
+    client_ip,
+    get_current_user,
+    require_admin,
+    require_csrf,
+    settings_dep,
+)
+from venomscan_api.models import AiSetting, Target, TestCredential, User
 from venomscan_api.schemas import (
     AiProviderTestOut,
     AiSettingsIn,
@@ -22,6 +28,7 @@ from venomscan_api.schemas import (
     SettingsOut,
 )
 from venomscan_api.services import ai_service, audit, workspace
+from venomscan_api.services.ai_policy import AiDestinationError, validate_ai_base_url
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -42,6 +49,7 @@ def _credential_out(row: TestCredential, secret: str) -> CredentialOut:
         names = []
     return CredentialOut(
         id=row.id,
+        target_id=row.target_id,
         label=row.label,
         role=row.role,
         identity=row.identity,
@@ -82,7 +90,7 @@ def update_settings(
     payload: SettingsIn,
     request: Request,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_admin),
 ) -> SettingsOut:
     from venomscan_engine.checks import all_check_ids
 
@@ -114,10 +122,16 @@ def update_settings(
 
 @router.get("/credentials", response_model=list[CredentialOut])
 def list_credentials(
-    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    settings: Settings = Depends(settings_dep),
 ) -> list[CredentialOut]:
-    secret = get_settings().secret_key
-    rows = db.scalars(select(TestCredential).order_by(TestCredential.created_at)).all()
+    secret = settings.secret_key
+    rows = db.scalars(
+        select(TestCredential)
+        .where(TestCredential.owner_id == user.id)
+        .order_by(TestCredential.created_at)
+    ).all()
     return [_credential_out(row, secret) for row in rows]
 
 
@@ -132,15 +146,32 @@ def create_credential(
     request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    settings: Settings = Depends(settings_dep),
 ) -> CredentialOut:
-    if db.scalar(select(TestCredential).where(TestCredential.label == payload.label)):
-        raise HTTPException(status_code=409, detail="A test account with that label already exists")
-    if len(db.scalars(select(TestCredential)).all()) >= 3:
-        raise HTTPException(
-            status_code=422, detail="At most three test accounts can be configured"
+    target = db.get(Target, payload.target_id)
+    if target is None or target.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Target not found")
+    duplicate = db.scalar(
+        select(TestCredential).where(
+            TestCredential.owner_id == user.id, TestCredential.label == payload.label
         )
-    secret = get_settings().secret_key
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail="A test account with that label already exists")
+    scoped = db.scalars(
+        select(TestCredential).where(
+            TestCredential.owner_id == user.id,
+            TestCredential.target_id == target.id,
+        )
+    ).all()
+    if len(scoped) >= 3:
+        raise HTTPException(
+            status_code=422, detail="At most three test accounts can be configured per target"
+        )
+    secret = settings.secret_key
     row = TestCredential(
+        owner_id=user.id,
+        target_id=target.id,
         label=payload.label,
         role=payload.role,
         identity=payload.identity,
@@ -153,7 +184,12 @@ def create_credential(
         actor=user,
         target_type="credential",
         target_id=row.id,
-        detail={"label": payload.label, "role": payload.role, "headers": sorted(payload.headers)},
+        detail={
+            "label": payload.label,
+            "role": payload.role,
+            "target_id": target.id,
+            "headers": sorted(payload.headers),
+        },
         ip=client_ip(request),
     )
     db.commit()
@@ -173,7 +209,7 @@ def delete_credential(
     user: User = Depends(get_current_user),
 ) -> Response:
     row = db.get(TestCredential, credential_id)
-    if row is None:
+    if row is None or row.owner_id != user.id:
         raise HTTPException(status_code=404, detail="Test account not found")
     audit.record(
         db,
@@ -191,7 +227,7 @@ def delete_credential(
 
 @router.get("/ai", response_model=AiSettingsOut)
 def read_ai_settings(
-    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), user: User = Depends(require_admin)
 ) -> AiSettingsOut:
     return _ai_out(_ai_row(db))
 
@@ -201,13 +237,17 @@ def update_ai_settings(
     payload: AiSettingsIn,
     request: Request,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_admin),
 ) -> AiSettingsOut:
     secret = get_settings().secret_key
+    try:
+        base_url = validate_ai_base_url(payload.provider, payload.base_url, get_settings())
+    except AiDestinationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     row = _ai_row(db)
     row.provider = payload.provider
     row.model = payload.model
-    row.base_url = payload.base_url.strip()
+    row.base_url = base_url
     if payload.api_key is not None:
         row.api_key_encrypted = encrypt(secret, payload.api_key) if payload.api_key else ""
     audit.record(
@@ -234,7 +274,7 @@ def update_ai_settings(
 async def test_ai_provider(
     request: Request,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_admin),
 ) -> AiProviderTestOut:
     result = await ai_service.test_provider(db)
     audit.record(

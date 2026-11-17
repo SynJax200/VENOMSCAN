@@ -32,6 +32,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(120), default="")
+    role: Mapped[str] = mapped_column(String(16), default="user", index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -237,11 +238,21 @@ class TestCredential(Base):
     __tablename__ = "test_credentials"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    target_id: Mapped[str | None] = mapped_column(
+        ForeignKey("targets.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     label: Mapped[str] = mapped_column(String(80))
     role: Mapped[str] = mapped_column(String(24), default="user")
     identity: Mapped[str] = mapped_column(String(200), default="")
     headers_encrypted: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("owner_id", "label", name="uq_test_credentials_owner_label"),
+    )
 
 
 class AiSetting(Base):

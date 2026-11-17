@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from sqlalchemy import select
 
 from venomscan_api import security
@@ -10,24 +12,34 @@ from venomscan_api.services import verification
 from venomscan_api.services.runner import execute_scan
 
 DEMO_EMAIL = "demo@venomscan.local"
-DEMO_PASSWORD = "Venom-demo-123"
 
 
 def main() -> None:
     settings = get_settings()
+    if not settings.demo_routes_active:
+        print(
+            "demo seed skipped: set DEMO_ENABLED=true in a non-production environment "
+            "(the /demo fixtures are intentionally vulnerable)"
+        )
+        return
+    password = os.environ.get("DEMO_PASSWORD", "")
     init_engine(settings)
     init_db()
     with session_factory()() as db:
         user = db.scalar(select(User).where(User.email == DEMO_EMAIL))
         if user is None:
+            if len(password) < 12:
+                print("demo seed skipped: set DEMO_PASSWORD to at least 12 characters")
+                return
             user = User(
                 email=DEMO_EMAIL,
                 name="Demo Analyst",
-                password_hash=security.hash_password(DEMO_PASSWORD),
+                role="admin",
+                password_hash=security.hash_password(password),
             )
             db.add(user)
             db.flush()
-            print(f"created user {DEMO_EMAIL} / {DEMO_PASSWORD}")
+            print(f"created user {DEMO_EMAIL}")
 
         target = db.scalar(select(Target).where(Target.owner_id == user.id))
         if target is None:

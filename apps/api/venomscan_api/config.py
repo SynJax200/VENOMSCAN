@@ -31,7 +31,9 @@ class Settings(BaseSettings):
     login_lockout_seconds: int = 900
     login_state_backend: str = "memory"
     redis_url: str = ""
-    allow_registration: bool = True
+    allow_registration: bool = False
+    trusted_proxies: str = ""
+    demo_enabled: bool = False
 
     database_url: str = "postgresql+psycopg://venom:venom@127.0.0.1:55432/venomscan"
 
@@ -60,6 +62,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_timeout: float = 30.0
     llm_retries: int = 1
+    ai_allowed_hosts: str = "api.openai.com,api.anthropic.com"
     ai_cache_ttl_seconds: int = 900
     ai_auto_triage: bool = True
     ai_report_autofill: bool = True
@@ -79,8 +82,20 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
+    def trusted_proxy_list(self) -> list[str]:
+        return [item.strip() for item in self.trusted_proxies.split(",") if item.strip()]
+
+    @property
+    def ai_allowed_host_list(self) -> list[str]:
+        return [item.strip().lower() for item in self.ai_allowed_hosts.split(",") if item.strip()]
+
+    @property
     def is_production(self) -> bool:
         return self.environment.lower() in {"production", "prod"}
+
+    @property
+    def demo_routes_active(self) -> bool:
+        return self.demo_enabled and not self.is_production
 
 
 @lru_cache

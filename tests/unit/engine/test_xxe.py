@@ -161,3 +161,15 @@ async def test_xxe_stops_when_budget_is_low(make_bundle):
     with OobListener() as oob:
         ctx.artifacts["oob"] = oob
         assert await XxeCheck().run(ctx) == []
+
+
+@pytest.mark.asyncio
+async def test_xxe_skips_and_labels_when_oob_is_unavailable(make_bundle):
+    sink = CollectingSink()
+    ctx = _context(make_bundle)
+    ctx.sink = sink
+    findings = await XxeCheck().run(ctx)
+    assert findings == []
+    messages = [event.message for event in sink.events]
+    assert any("XXE skipped" in message and "out-of-band" in message for message in messages)
+    assert all(event.payload.get("check_id") == "venom.xxe" for event in sink.events)

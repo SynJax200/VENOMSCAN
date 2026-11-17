@@ -13,6 +13,7 @@ class UserOut(BaseModel):
     id: str
     email: str
     name: str
+    role: str = "user"
     created_at: datetime
 
 
@@ -264,6 +265,7 @@ CredentialRole = Literal["user", "viewer", "analyst", "student", "admin", "other
 
 
 class CredentialIn(BaseModel):
+    target_id: str = Field(min_length=1, max_length=36)
     label: str = Field(min_length=2, max_length=80)
     role: CredentialRole = "user"
     identity: str = Field(default="", max_length=200)
@@ -284,6 +286,7 @@ class CredentialIn(BaseModel):
 
 class CredentialOut(BaseModel):
     id: str
+    target_id: str | None
     label: str
     role: str
     identity: str

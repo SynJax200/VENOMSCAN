@@ -16,6 +16,7 @@ from venomscan_api.schemas import (
     WalkthroughOut,
 )
 from venomscan_api.services import audit, learning
+from venomscan_api.services.finding_integrity import effective_finding_status
 
 router = APIRouter(prefix="/api/learning", tags=["learning"])
 
@@ -86,7 +87,7 @@ def list_practice_findings(
             title=row.title,
             category=row.category,
             severity=row.severity,
-            verification_status=row.verification_status,
+            verification_status=effective_finding_status(row)[0],
             confidence=row.confidence,
             risk_score=row.risk_score,
             url=row.url,

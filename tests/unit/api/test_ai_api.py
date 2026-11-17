@@ -21,6 +21,7 @@ def api_settings(tmp_path) -> Settings:
         database_url=f"sqlite:///{tmp_path / 'ai.db'}",
         secret_key="test-secret-key-that-is-long-enough-for-hs256",
         environment="test",
+        allow_registration=True,
         allow_private_targets=True,
         scan_max_requests=5,
         scan_max_seconds=5,
@@ -85,6 +86,12 @@ async def _seed_finding() -> tuple[str, str]:
             impact="Inline scripts can execute freely.",
             remediation="Send a strict Content-Security-Policy header.",
             references=["https://developer.mozilla.org/docs/Web/HTTP/CSP"],
+            request_evidence={"method": "GET", "url": CSP_URL},
+            response_evidence={
+                "url": CSP_URL,
+                "status_code": 200,
+                "headers": {"Content-Type": "text/html"},
+            },
         )
         db.add(finding)
         db.add_all(

@@ -42,10 +42,21 @@ def _ensure_oob(settings) -> OobListener | None:
         return _oob_listener
 
 
-def _auth_accounts(settings) -> list[dict]:
-    """Decrypt configured test accounts for the engine; tokens never leave this scope."""
+def _auth_accounts(settings, scan_id: str) -> list[dict]:
+    """Decrypt only the credentials explicitly attached to this scan's target."""
     with session_factory()() as db:
-        rows = db.scalars(select(TestCredential).order_by(TestCredential.created_at)).all()
+        scan = db.get(Scan, scan_id)
+        if scan is None or scan.target is None or not scan.is_verified:
+            return []
+        target = scan.target
+        rows = db.scalars(
+            select(TestCredential)
+            .where(
+                TestCredential.owner_id == target.owner_id,
+                TestCredential.target_id == target.id,
+            )
+            .order_by(TestCredential.created_at)
+        ).all()
         accounts: list[dict] = []
         for row in rows[:3]:
             try:
@@ -245,7 +256,7 @@ def execute_scan(scan_id: str) -> None:
                 active_consent,
                 cancel_check=_cancel_watch(scan_id),
                 oob=_ensure_oob(settings) if profile == "active" else None,
-                auth_accounts=_auth_accounts(settings) if profile == "active" else [],
+                auth_accounts=_auth_accounts(settings, scan_id) if profile == "active" else [],
             )
         )
     except ScanCancelled:

@@ -514,6 +514,44 @@ async def test_post_json_transport_error_fails_after_retries(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_post_json_rejects_redirects():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(307, headers={"location": "http://127.0.0.1/steal"})
+
+    with pytest.raises(LLMError, match="redirect"):
+        await _http.post_json(
+            "https://llm.test/v1/chat/completions",
+            headers={"Authorization": "Bearer secret"},
+            body={},
+            timeout_seconds=5,
+            transport=httpx.MockTransport(handler),
+            retries=0,
+        )
+
+
+def test_pin_public_destination_rejects_non_public_addresses(monkeypatch):
+    def private_lookup(*args, **kwargs):
+        return [(2, 1, 6, "", ("10.0.0.5", 443))]
+
+    monkeypatch.setattr(_http.socket, "getaddrinfo", private_lookup)
+    with pytest.raises(LLMError, match="not public"):
+        _http._pin_public_destination("https://llm.attacker.test/v1/chat/completions")
+
+
+def test_pin_public_destination_pins_ip_and_preserves_sni(monkeypatch):
+    def public_lookup(*args, **kwargs):
+        return [(2, 1, 6, "", ("93.184.216.34", 443))]
+
+    monkeypatch.setattr(_http.socket, "getaddrinfo", public_lookup)
+    url, headers, sni = _http._pin_public_destination(
+        "https://api.openai.com/v1/chat/completions"
+    )
+    assert "93.184.216.34:443" in url
+    assert headers["Host"] == "api.openai.com"
+    assert sni == "api.openai.com"
+
+
+@pytest.mark.asyncio
 async def test_openai_provider_survives_one_transient_failure(monkeypatch):
     async def fake_sleep(delay: float) -> None:
         return None

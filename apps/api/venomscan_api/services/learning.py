@@ -7,6 +7,7 @@ from venomscan_engine.learning import build_exercises, build_walkthrough, curric
 from venomscan_engine.models import endpoint_state
 
 from venomscan_api.models import Endpoint, Finding, LearningProgress, Scan, Target, User
+from venomscan_api.services.finding_integrity import effective_finding_status
 
 STATUSES = {"not_started", "in_progress", "completed"}
 
@@ -106,16 +107,20 @@ def set_progress(db: Session, user: User, check_id: str, status: str) -> Learnin
 
 
 def practice_findings(db: Session, user: User, limit: int = 12) -> list[Finding]:
-    return list(
-        db.scalars(
-            select(Finding)
-            .join(Scan, Scan.id == Finding.scan_id)
-            .join(Target, Target.id == Scan.target_id)
-            .where(Target.owner_id == user.id, Finding.verification_status == "verified")
-            .order_by(Finding.created_at.desc(), Finding.id)
-            .limit(limit)
-        ).all()
-    )
+    rows = db.scalars(
+        select(Finding)
+        .join(Scan, Scan.id == Finding.scan_id)
+        .join(Target, Target.id == Scan.target_id)
+        .where(Target.owner_id == user.id, Finding.verification_status == "verified")
+        .order_by(Finding.created_at.desc(), Finding.id)
+        .limit(limit * 4)
+    ).all()
+    practice = [
+        row
+        for row in rows
+        if effective_finding_status(row)[0] == "verified"
+    ]
+    return practice[:limit]
 
 
 def owned_finding(db: Session, user: User, finding_id: str) -> Finding | None:
@@ -128,6 +133,7 @@ def owned_finding(db: Session, user: User, finding_id: str) -> Finding | None:
 
 
 def finding_payload(finding: Finding) -> dict:
+    status, _ = effective_finding_status(finding)
     return {
         "id": finding.id,
         "scan_id": finding.scan_id,
@@ -135,7 +141,7 @@ def finding_payload(finding: Finding) -> dict:
         "title": finding.title,
         "category": finding.category,
         "severity": finding.severity,
-        "verification_status": finding.verification_status,
+        "verification_status": status,
         "confidence": finding.confidence,
         "risk_score": finding.risk_score,
         "url": finding.url,
@@ -218,13 +224,14 @@ def _endpoint_entry(
     for finding in findings:
         entry = catalog.get(finding.check_id, {})
         learning = entry.get("learning") or {}
+        status, _ = effective_finding_status(finding)
         lessons.append(
             {
                 "finding_id": finding.id,
                 "check_id": finding.check_id,
                 "title": finding.title,
                 "severity": finding.severity,
-                "verification_status": finding.verification_status,
+                "verification_status": status,
                 "risk_score": finding.risk_score,
                 "what": learning.get("what", ""),
                 "why": learning.get("why", ""),

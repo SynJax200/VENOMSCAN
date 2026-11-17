@@ -28,6 +28,7 @@ from venomscan_api.config import Settings
 from venomscan_api.db import as_utc, utcnow
 from venomscan_api.models import AiAnalysis, Report, Scan, User
 from venomscan_api.schemas import ReportOut
+from venomscan_api.services import finding_integrity
 
 
 class ReportRenderError(RuntimeError):
@@ -108,34 +109,39 @@ def build_model(db: Session, scan: Scan, user: User) -> ReportModel:
         .where(AiAnalysis.scan_id == scan.id, AiAnalysis.finding_id.is_(None))
         .order_by(AiAnalysis.created_at)
     ).all()
-    findings = [
-        ReportFinding(
-            id=finding.id,
-            check_id=finding.check_id,
-            title=finding.title,
-            category=finding.category,
-            severity=finding.severity,
-            verification_status=finding.verification_status,
-            confidence=finding.confidence,
-            risk_score=finding.risk_score,
-            url=finding.url,
-            method=finding.method,
-            parameter=finding.parameter,
-            payload=finding.payload,
-            description=finding.description,
-            impact=finding.impact,
-            remediation=finding.remediation,
-            references=finding.references or [],
-            cwe=finding.cwe or [],
-            owasp=finding.owasp or [],
-            cvss_score=finding.cvss_score,
-            cvss_vector=finding.cvss_vector,
-            request_evidence=finding.request_evidence or {},
-            response_evidence=finding.response_evidence or {},
-            ai_summary=finding.ai_summary or "",
+    findings = []
+    for finding in sorted(scan.findings, key=lambda item: -item.risk_score):
+        status, reason = finding_integrity.effective_finding_status(finding)
+        response_evidence = dict(finding.response_evidence or {})
+        if reason:
+            response_evidence.setdefault("verification_reason", reason)
+        findings.append(
+            ReportFinding(
+                id=finding.id,
+                check_id=finding.check_id,
+                title=finding.title,
+                category=finding.category,
+                severity=finding.severity,
+                verification_status=status,
+                confidence=finding.confidence,
+                risk_score=finding.risk_score,
+                url=finding.url,
+                method=finding.method,
+                parameter=finding.parameter,
+                payload=finding.payload,
+                description=finding.description,
+                impact=finding.impact,
+                remediation=finding.remediation,
+                references=finding.references or [],
+                cwe=finding.cwe or [],
+                owasp=finding.owasp or [],
+                cvss_score=finding.cvss_score,
+                cvss_vector=finding.cvss_vector,
+                request_evidence=finding.request_evidence or {},
+                response_evidence=response_evidence,
+                ai_summary=finding.ai_summary or "",
+            )
         )
-        for finding in sorted(scan.findings, key=lambda item: -item.risk_score)
-    ]
     return ReportModel(
         generated_at=_iso(utcnow()) or "",
         scan=ReportScan(

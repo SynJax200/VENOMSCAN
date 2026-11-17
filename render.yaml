@@ -24,7 +24,9 @@ services:
       - key: COOKIE_SECURE
         value: "true"
       - key: ALLOW_REGISTRATION
-        value: "true"
+        value: "false"
+      - key: DEMO_ENABLED
+        value: "false"
       - key: LOGIN_STATE_BACKEND
         value: memory
       - key: TASK_MODE

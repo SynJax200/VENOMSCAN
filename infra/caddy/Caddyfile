@@ -17,6 +17,12 @@
 		-Server
 	}
 
+	# Interactive docs and the intentionally vulnerable demo fixtures are never public.
+	@hidden path /docs* /redoc* /openapi.json /demo*
+	handle @hidden {
+		respond "Not found" 404
+	}
+
 	# Server-sent events must not be buffered by the proxy.
 	handle /api/scans/*/events/stream* {
 		reverse_proxy api:8000 {
@@ -29,14 +35,6 @@
 	}
 
 	handle /healthz {
-		reverse_proxy api:8000
-	}
-
-	handle /docs* {
-		reverse_proxy api:8000
-	}
-
-	handle /openapi.json {
 		reverse_proxy api:8000
 	}
 

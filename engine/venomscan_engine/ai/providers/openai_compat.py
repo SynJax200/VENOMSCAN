@@ -20,6 +20,7 @@ class OpenAICompatProvider:
     timeout: float = 30.0
     transport: Any = None
     retries: int = 1
+    allow_private: bool = False
     name: str = "openai_compat"
 
     async def complete(
@@ -51,6 +52,7 @@ class OpenAICompatProvider:
             timeout_seconds=self.timeout,
             transport=self.transport,
             retries=self.retries,
+            pin_public=not self.allow_private,
         )
         try:
             content = response.json()["choices"][0]["message"]["content"]

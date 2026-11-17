@@ -34,6 +34,7 @@ def build_provider(
     timeout: float = 30.0,
     retries: int = 1,
     transport: Any = None,
+    allow_private: bool = False,
 ) -> LLMProvider | None:
     """Return a provider instance, or None when the configuration cannot call out.
 
@@ -48,11 +49,13 @@ def build_provider(
         return OpenAICompatProvider(
             model=model, base_url=base_url or "https://api.openai.com/v1",
             api_key=api_key, timeout=timeout, retries=retries, transport=transport,
+            allow_private=allow_private,
         )
     if provider == "anthropic" and api_key:
         return AnthropicProvider(
             model=model, base_url=base_url or "https://api.anthropic.com",
             api_key=api_key, timeout=timeout, retries=retries, transport=transport,
+            allow_private=allow_private,
         )
     if provider == "ollama":
         return OllamaProvider(

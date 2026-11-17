@@ -17,6 +17,7 @@ def api_settings(tmp_path) -> Settings:
         database_url=f"sqlite:///{tmp_path / 'perf.db'}",
         secret_key="test-secret-key-that-is-long-enough-for-hs256",
         environment="test",
+        allow_registration=True,
         allow_private_targets=True,
         task_mode="inline",
     )

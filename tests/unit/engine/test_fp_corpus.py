@@ -415,11 +415,23 @@ def test_proof_contract_targets_real_checks(check_id):
 
 
 @pytest.mark.parametrize(
-    "check_id",
-    ["venom.headers.csp", "venom.cookies.flags", "venom.tls.weak", "venom.info.server"],
+    ("check_id", "observed"),
+    [
+        ("venom.headers.csp", {"url": "https://example.com/", "headers": {}}),
+        ("venom.cookies.flags", {"url": "https://example.com/", "set_cookie": "«redacted»"}),
+        ("venom.tls.weak", {"tls": {"protocol": "TLSv1.1"}}),
+        ("venom.info.server", {"url": "https://example.com/", "status_code": 200}),
+    ],
 )
-def test_deterministic_families_are_promoted_without_exploit_proof(check_id):
-    finding = _exploit_finding(check_id, {})
+def test_deterministic_families_promote_with_observed_evidence(check_id, observed):
+    finding = _exploit_finding(check_id, observed)
     finding.verification_status = VerificationStatus.SUSPECTED
     mark_verified([finding])
     assert finding.verification_status is VerificationStatus.VERIFIED
+
+
+def test_deterministic_family_without_observed_evidence_is_not_promoted():
+    finding = _exploit_finding("venom.headers.csp", {})
+    finding.verification_status = VerificationStatus.SUSPECTED
+    mark_verified([finding])
+    assert finding.verification_status is VerificationStatus.SUSPECTED

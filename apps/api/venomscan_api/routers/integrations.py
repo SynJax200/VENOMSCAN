@@ -16,6 +16,7 @@ from venomscan_api.deps import client_ip, get_current_user, require_csrf
 from venomscan_api.models import Endpoint, Finding, Scan, Target, User
 from venomscan_api.schemas import BurpImportOut, IntegrationStatusOut, NucleiStatusOut
 from venomscan_api.services import audit
+from venomscan_api.services.finding_integrity import effective_finding_status
 
 router = APIRouter(prefix="/api", tags=["integrations"])
 
@@ -173,31 +174,33 @@ def burp_export(
     scan = db.get(Scan, scan_id)
     if scan is None or scan.target is None or scan.target.owner_id != user.id:
         raise HTTPException(status_code=404, detail="Scan not found")
-    findings = [
-        EngineFinding(
-            check_id=finding.check_id,
-            title=finding.title,
-            category=finding.category,
-            severity=Severity(finding.severity),
-            confidence=finding.confidence,
-            verification_status=VerificationStatus(finding.verification_status),
-            url=finding.url,
-            method=finding.method,
-            parameter=finding.parameter,
-            payload=finding.payload,
-            description=finding.description,
-            impact=finding.impact,
-            remediation=finding.remediation,
-            references=finding.references or [],
-            cwe=finding.cwe or [],
-            owasp=finding.owasp or [],
-            cvss_score=finding.cvss_score,
-            cvss_vector=finding.cvss_vector,
-            dedup_key=finding.dedup_key,
-            risk_score=finding.risk_score,
+    findings = []
+    for finding in sorted(scan.findings, key=lambda item: -item.risk_score):
+        status, _ = effective_finding_status(finding)
+        findings.append(
+            EngineFinding(
+                check_id=finding.check_id,
+                title=finding.title,
+                category=finding.category,
+                severity=Severity(finding.severity),
+                confidence=finding.confidence,
+                verification_status=VerificationStatus(status),
+                url=finding.url,
+                method=finding.method,
+                parameter=finding.parameter,
+                payload=finding.payload,
+                description=finding.description,
+                impact=finding.impact,
+                remediation=finding.remediation,
+                references=finding.references or [],
+                cwe=finding.cwe or [],
+                owasp=finding.owasp or [],
+                cvss_score=finding.cvss_score,
+                cvss_vector=finding.cvss_vector,
+                dedup_key=finding.dedup_key,
+                risk_score=finding.risk_score,
+            )
         )
-        for finding in sorted(scan.findings, key=lambda item: -item.risk_score)
-    ]
     audit.record(
         db,
         "burp.export",

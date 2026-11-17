@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ipaddress
+
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
@@ -37,8 +39,46 @@ def get_current_user(
     return user
 
 
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access is required for this operation",
+        )
+    return user
+
+
+def _parse_ip(value: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    try:
+        address = ipaddress.ip_address(value.strip())
+    except ValueError:
+        return None
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+        return address.ipv4_mapped
+    return address
+
+
+def _is_internal_peer(value: str) -> bool:
+    """Peers inside the deployment (Caddy/Render proxy) are the only trusted forwarders."""
+    address = _parse_ip(value)
+    return bool(
+        address
+        and (address.is_loopback or address.is_private or address.is_link_local)
+    )
+
+
 def client_ip(request: Request) -> str:
+    peer = request.client.host if request.client else ""
+    if not peer:
+        return ""
+    settings = getattr(request.app.state, "settings", None) or get_settings()
+    trusted = peer in settings.trusted_proxy_list or _is_internal_peer(peer)
     forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else ""
+    if trusted and forwarded:
+        # The nearest hop appends the address it observed, so the last entry is the
+        # client. Earlier entries can be supplied by the caller and are ignored.
+        for candidate in reversed(forwarded.split(",")):
+            address = _parse_ip(candidate)
+            if address is not None:
+                return str(address)
+    return peer

@@ -95,7 +95,9 @@ Edit `infra/compose/.env.prod`:
 | `SECRET_KEY` | `openssl rand -hex 32` | Rotating invalidates sessions, CSRF tokens and every signed report link |
 | `POSTGRES_PASSWORD` | `openssl rand -hex 24` | Only used when the DB volume is first initialized |
 | `ALLOW_PRIVATE_TARGETS` | `false` | Keep false on an internet-facing host |
-| `ALLOW_REGISTRATION` | `true` for onboarding → `false` after | See step 7 |
+| `ALLOW_REGISTRATION` | `false` (set `true` only for onboarding) | See step 7 |
+| `TRUSTED_PROXIES` | empty | Private/loopback peers (Caddy) are trusted automatically |
+| `AI_ALLOWED_HOSTS` | `api.openai.com,api.anthropic.com` | Cloud AI base URLs must be HTTPS and match |
 | `LLM_API_KEY` | provider key (optional) | Empty keeps the deterministic analysis path |
 | `OOB_ENABLED` | `false` on a public VPS | See the OOB note in step 9 |
 | `NUCLEI_ENABLED` | `true` | Needs the binary from step 4 |
@@ -168,10 +170,17 @@ domain. Renewal is automatic; ports 80/443 must stay reachable for renewals.
 
 ## 7. Onboarding users and closing sign-up
 
-1. Open `https://scan.example.com`, register the accounts your team needs
-   (registration is CSRF-protected and audited as `auth.register`).
-2. Set `ALLOW_REGISTRATION=false` in `infra/compose/.env.prod`.
-3. Apply it:
+1. Set `ALLOW_REGISTRATION=true` in `infra/compose/.env.prod` and apply it:
+
+```bash
+docker compose --env-file infra/compose/.env.prod \
+  -f infra/compose/docker-compose.prod.yml up -d api
+```
+
+2. Open `https://scan.example.com`, register the accounts your team needs
+   (registration is CSRF-protected and audited as `auth.register`). The first
+   account becomes the administrator; everyone after that is a regular user.
+3. Set `ALLOW_REGISTRATION=false` in `infra/compose/.env.prod` and apply it:
 
 ```bash
 docker compose --env-file infra/compose/.env.prod \

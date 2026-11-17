@@ -42,12 +42,18 @@ def init_db() -> None:
     assert _engine is not None, "init_engine() must run before init_db()"
     Base.metadata.create_all(bind=_engine)
     _upgrade_columns(_engine)
+    _bootstrap_admin(_engine)
     _ensure_indexes(_engine)
 
 
 # Columns added after the first release. create_all() never alters existing
 # tables, so self-hosted databases need an explicit additive upgrade.
 _ADDED_COLUMNS: dict[str, tuple[tuple[str, str, str], ...]] = {
+    "users": (("role", "VARCHAR(16)", "user"),),
+    "test_credentials": (
+        ("owner_id", "VARCHAR(36)", "NULL"),
+        ("target_id", "VARCHAR(36)", "NULL"),
+    ),
     "scans": (("recon", "JSON", "{}"),),
     "endpoints": (("depth", "INTEGER", "0"), ("parameters", "JSON", "[]")),
 }
@@ -66,6 +72,8 @@ def _upgrade_columns(engine) -> None:
                     continue
                 if engine.dialect.name == "postgresql" and sql_type == "JSON":
                     rendered = "'{}'::json" if default == "{}" else f"'{default}'::json"
+                elif default == "NULL":
+                    rendered = "NULL"
                 else:
                     rendered = f"'{default}'"
                 connection.execute(
@@ -74,6 +82,33 @@ def _upgrade_columns(engine) -> None:
                         f"DEFAULT {rendered}"
                     )
                 )
+
+
+def _bootstrap_admin(engine) -> None:
+    """Promote one existing account after the RBAC upgrade so settings stay reachable.
+
+    New installations make the first registered account the administrator instead.
+    """
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    if "users" not in tables:
+        return
+    columns = {column["name"] for column in inspector.get_columns("users")}
+    if "role" not in columns:
+        return
+    with engine.begin() as connection:
+        has_admin = connection.execute(
+            text("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1")
+        ).first()
+        if has_admin:
+            return
+        oldest = connection.execute(
+            text("SELECT id FROM users ORDER BY created_at ASC LIMIT 1")
+        ).first()
+        if oldest:
+            connection.execute(
+                text("UPDATE users SET role = 'admin' WHERE id = :id"), {"id": oldest[0]}
+            )
 
 
 # Additive covering indexes for the list/dashboard/report queries. They are created
@@ -86,6 +121,9 @@ _INDEXES: tuple[tuple[str, str], ...] = (
     ("ix_technologies_scan_id_name", "technologies", '("scan_id", "name")'),
     ("ix_reports_scan_id_created", "reports", '("scan_id", "created_at")'),
     ("ix_ai_analyses_scan_id_kind", "ai_analyses", '("scan_id", "kind")'),
+    ("ix_test_credentials_owner_id", "test_credentials", '("owner_id")'),
+    ("ix_test_credentials_target_id", "test_credentials", '("target_id")'),
+    ("ix_users_role", "users", '("role")'),
 )
 
 

@@ -7,6 +7,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  role: "admin" | "user";
   created_at: string;
 }
 
@@ -498,6 +499,7 @@ export interface WorkspaceSettings {
 
 export interface Credential {
   id: string;
+  target_id: string | null;
   label: string;
   role: string;
   identity: string;

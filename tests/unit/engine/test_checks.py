@@ -145,6 +145,12 @@ def test_verifier_marks_deterministic_findings(make_bundle):
             description="d",
             impact="i",
             remediation="r",
+            request_evidence={"method": "GET", "url": "https://example.com/"},
+            response_evidence={
+                "url": "https://example.com/",
+                "status_code": 200,
+                "headers": {"server": "demo"},
+            },
         )
     )
     ctx.add_finding(ctx.findings[0].model_copy(update={"check_id": "venom.xss.reflected"}))

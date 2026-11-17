@@ -25,6 +25,8 @@ from venomscan_api.config import get_settings
 from venomscan_api.crypto import decrypt
 from venomscan_api.db import session_factory, utcnow
 from venomscan_api.models import AiAnalysis, AiSetting, Endpoint, Finding, Scan, Technology
+from venomscan_api.services.ai_policy import AiDestinationError, validate_ai_base_url
+from venomscan_api.services.finding_integrity import effective_finding_status
 
 _URL = re.compile(r"https?://[^\s\"'<>)\]]+")
 _CVE = re.compile(r"\bCVE-\d{4}-\d{4,7}\b", re.IGNORECASE)
@@ -67,6 +69,11 @@ def _config(db: Session) -> tuple[str, str, str, str]:
 def provider_for(db: Session):
     provider, model, base_url, api_key = _config(db)
     env = get_settings()
+    try:
+        validate_ai_base_url(provider, base_url, env)
+    except AiDestinationError:
+        # A legacy or tampered row must never receive the decrypted key.
+        return None
     return build_provider(
         provider,
         model=model,
@@ -151,6 +158,7 @@ def _finding_recon(finding: Finding) -> dict[str, Any]:
 
 
 def _finding_dict(finding: Finding) -> dict[str, Any]:
+    status, _ = effective_finding_status(finding)
     return {
         "id": finding.id,
         "check_id": finding.check_id,
@@ -158,7 +166,7 @@ def _finding_dict(finding: Finding) -> dict[str, Any]:
         "category": finding.category,
         "severity": finding.severity,
         "confidence": finding.confidence,
-        "verification_status": finding.verification_status,
+        "verification_status": status,
         "url": finding.url,
         "method": finding.method,
         "parameter": finding.parameter,

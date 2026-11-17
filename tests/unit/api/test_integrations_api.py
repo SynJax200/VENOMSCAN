@@ -20,6 +20,7 @@ def api_settings(tmp_path) -> Settings:
         database_url=f"sqlite:///{tmp_path / 'integrations.db'}",
         secret_key="test-secret-key-that-is-long-enough-for-hs256",
         environment="test",
+        allow_registration=True,
         allow_private_targets=True,
         task_mode="inline",
     )
@@ -221,6 +222,7 @@ async def test_plugin_catalog_lists_configured_directory(tmp_path, monkeypatch):
         database_url=f"sqlite:///{tmp_path / 'plugins.db'}",
         secret_key="test-secret-key-that-is-long-enough-for-hs256",
         environment="test",
+        allow_registration=True,
         plugin_dirs=str(examples),
         task_mode="inline",
     )

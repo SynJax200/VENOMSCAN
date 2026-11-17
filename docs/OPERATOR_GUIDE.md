@@ -15,16 +15,18 @@ workflow see [USER_GUIDE.md](USER_GUIDE.md); for the safety contract see
 ## 2. Local development
 
 ```bash
-cp .env.example .env                 # edit SECRET_KEY and datastore URLs
+cp .env.example .env                 # edit SECRET_KEY, datastore URLs and DEMO_PASSWORD
 make db-up                           # Postgres :55432, Redis :56379
 uv sync --all-packages
 make api                             # http://127.0.0.1:8000
 make web                             # http://localhost:3000
-uv run python -m venomscan_api.seed  # demo user + verified local target + one scan
+DEMO_PASSWORD='choose-a-local-password' make seed
 ```
 
-Demo credentials: `demo@venomscan.local` / `Venom-demo-123`. The seed scan targets the
-API's own `/demo` fixture, so `ALLOW_PRIVATE_TARGETS=true` is required for it.
+`make seed` creates `demo@venomscan.local` with the password from `DEMO_PASSWORD`
+(12+ characters, never printed). `.env.example` enables `DEMO_ENABLED=true` for this
+local fixture only; production ignores the flag. The seed scan targets the API's own
+`/demo` fixture, so `ALLOW_PRIVATE_TARGETS=true` is required for it.
 PDF reports need Chromium: `uv run playwright install chromium`.
 
 ## 3. Production deployment
@@ -78,25 +80,20 @@ For a public install, before the first start:
   hostname that resolves to this server.
 - Keep `ALLOW_PRIVATE_TARGETS=false` and remove the demo seed/credentials before onboarding
   real users; rotate every placeholder secret.
-- Register the team's accounts, then set `ALLOW_REGISTRATION=false` and restart `api` so the
-  public host stops accepting new sign-ups.
+- Sign-up is closed by default. For onboarding, set `ALLOW_REGISTRATION=true`, register the
+  team's accounts (the first is the administrator), then set it back to `false` and restart
+  `api` so the public host stops accepting new sign-ups.
 
 Server-sent events are excluded from gzip at both layers and the Caddy route uses
 `flush_interval -1` so scan timelines stream in real time.
 
 ### Demo data (optional)
 
-The compose file defaults `SEED_TARGET_URL=http://api:8000/demo`, so a trial install can
-scan its own fixture:
-
-```bash
-docker compose --env-file infra/compose/.env.prod \
-  -f infra/compose/docker-compose.prod.yml exec api \
-  /app/.venv/bin/python -m venomscan_api.seed
-```
-
-This creates `demo@venomscan.local` / `Venom-demo-123`, a verified target and one safe scan.
-It only works when `ALLOW_PRIVATE_TARGETS=true` (a local trial — never on an internet-facing
+The production compose stack sets `DEMO_ENABLED=false` and `ENV=production`, so `/demo`
+returns 404 and the seed refuses to run. To exercise the intentionally vulnerable
+fixtures, use the development setup above instead. This creates `demo@venomscan.local`,
+a verified target and one safe scan. It only works when `ALLOW_PRIVATE_TARGETS=true` (a
+local trial — never on an internet-facing
 install). Remove the demo user and target before handing the instance to real users.
 
 ### Optional integrations
@@ -159,9 +156,14 @@ links.
 1. Back up first (`scripts/backup.sh`).
 2. `git pull` and review `CHANGELOG`-style notes in [ROADMAP.md](ROADMAP.md).
 3. `docker compose ... up -d --build`.
-4. Run `uv run python -m pytest tests` and `cd apps/web && npm run build` when building from
+4. Revalidate stored findings against the current evidence contracts:
+   `docker compose ... exec api python -m venomscan_api.audit_verification --dry-run`,
+   review the count, then rerun without `--dry-run`. The tool writes a JSON backup of every
+   changed row before committing and only downgrades rows whose evidence does not support
+   `verified`.
+5. Run `uv run python -m pytest tests` and `cd apps/web && npm run build` when building from
    source outside Docker.
-5. Verify: login, one safe scan against a lab target, one report download.
+6. Verify: login, one safe scan against a lab target, one report download.
 
 ## 7. Troubleshooting
 

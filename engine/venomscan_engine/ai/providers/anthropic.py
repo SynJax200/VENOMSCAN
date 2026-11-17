@@ -18,6 +18,7 @@ class AnthropicProvider:
     timeout: float = 30.0
     transport: Any = None
     retries: int = 1
+    allow_private: bool = False
     name: str = "anthropic"
 
     async def complete(
@@ -49,6 +50,7 @@ class AnthropicProvider:
             timeout_seconds=self.timeout,
             transport=self.transport,
             retries=self.retries,
+            pin_public=not self.allow_private,
         )
         try:
             blocks = response.json()["content"]

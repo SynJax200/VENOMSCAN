@@ -61,6 +61,12 @@ def _finding() -> Finding:
         description="d",
         impact="i",
         remediation="r",
+        request_evidence={"method": "GET", "url": "http://127.0.0.1:9999/"},
+        response_evidence={
+            "url": "http://127.0.0.1:9999/",
+            "status_code": 200,
+            "headers": {"server": "demo"},
+        },
     ).finalize()
 
 

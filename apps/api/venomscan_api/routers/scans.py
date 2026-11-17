@@ -25,6 +25,7 @@ from venomscan_api.schemas import (
     ScanOut,
 )
 from venomscan_api.services import audit, workspace
+from venomscan_api.services.finding_integrity import effective_finding_status
 from venomscan_api.services.runner import dispatch
 from venomscan_api.services.serializers import (
     authorization_state,
@@ -213,6 +214,7 @@ def compare_scans(
             )
 
     def _item(finding) -> CompareFinding:
+        status, _ = effective_finding_status(finding)
         return CompareFinding(
             id=finding.id,
             check_id=finding.check_id,
@@ -220,7 +222,7 @@ def compare_scans(
             severity=finding.severity,
             risk_score=finding.risk_score,
             url=finding.url,
-            verification_status=finding.verification_status,
+            verification_status=status,
         )
 
     def _sorted(findings) -> list[CompareFinding]:

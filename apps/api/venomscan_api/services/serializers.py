@@ -13,7 +13,7 @@ from venomscan_api.schemas import (
     TechnologyOut,
     VerificationOut,
 )
-from venomscan_api.services import verification
+from venomscan_api.services import finding_integrity, verification
 
 
 def authorization_state(target: Target) -> tuple[bool, object | None]:
@@ -54,6 +54,10 @@ def target_out(target: Target, scan_count: int | None = None) -> TargetOut:
 
 
 def finding_out(finding: Finding, occurrences: int = 1) -> FindingOut:
+    status, reason = finding_integrity.effective_finding_status(finding)
+    response_evidence = dict(finding.response_evidence or {})
+    if reason:
+        response_evidence.setdefault("verification_reason", reason)
     return FindingOut(
         id=finding.id,
         scan_id=finding.scan_id,
@@ -61,7 +65,7 @@ def finding_out(finding: Finding, occurrences: int = 1) -> FindingOut:
         title=finding.title,
         category=finding.category,
         severity=finding.severity,
-        verification_status=finding.verification_status,
+        verification_status=status,
         confidence=finding.confidence,
         risk_score=finding.risk_score,
         url=finding.url,
@@ -77,7 +81,7 @@ def finding_out(finding: Finding, occurrences: int = 1) -> FindingOut:
         cvss_score=finding.cvss_score,
         cvss_vector=finding.cvss_vector,
         request_evidence=finding.request_evidence or {},
-        response_evidence=finding.response_evidence or {},
+        response_evidence=response_evidence,
         ai_summary=finding.ai_summary,
         ai_priority=finding.ai_priority,
         ai_false_positive_likelihood=finding.ai_false_positive_likelihood,

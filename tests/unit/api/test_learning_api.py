@@ -21,6 +21,7 @@ def api_settings(tmp_path) -> Settings:
         database_url=f"sqlite:///{tmp_path / 'learning.db'}",
         secret_key="test-secret-key-that-is-long-enough-for-hs256",
         environment="test",
+        allow_registration=True,
         allow_private_targets=True,
         scan_max_requests=5,
         scan_max_seconds=5,
@@ -125,7 +126,12 @@ def _seed_findings(target_id: str) -> tuple[str, str, str]:
             description="No HSTS header.",
             impact="Protocol downgrade becomes possible.",
             remediation="Send Strict-Transport-Security with a long max-age.",
-            response_evidence={"headers": {"Content-Type": "text/html"}},
+            request_evidence={"method": "GET", "url": BASE_URL},
+            response_evidence={
+                "url": BASE_URL,
+                "status_code": 200,
+                "headers": {"Content-Type": "text/html"},
+            },
         )
         redirect = Finding(
             scan_id=scan.id,

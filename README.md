@@ -337,8 +337,10 @@ make api                      # http://127.0.0.1:8000
 make web                      # http://localhost:3000
 ```
 
-Demo credentials created by `make seed`: `demo@venomscan.local` / `Venom-demo-123`.
-The seeded target is the API's own `/demo` fixture, which deliberately returns an insecure
+`make seed` requires `DEMO_PASSWORD` (12+ characters) and creates
+`demo@venomscan.local` with that password. `.env.example` enables the fixture with
+`DEMO_ENABLED=true`; production always disables it. The seeded target is the API's own
+`/demo` fixture, which deliberately returns an insecure
 `session_id` cookie, missing hardening headers, a reflected/SSTI/SQL-error search route, a
 client-side DOM sink (`/demo/dom`), a URL fetcher (`/demo/proxy`) and JSON endpoints carrying
 a fake JWT, so safe and active self-checks produce real findings.

@@ -265,6 +265,22 @@ AI **never** overwrites these numbers. AI produces `priority_score` (advisory) a
 Findings carry `verification_status ∈ {suspected, verified, rejected}`; rejected items are
 kept for learning mode but hidden from reports.
 
+`verified` is evidence-bound. The verifier classifies every check family and only promotes
+when the stored proof matches its contract:
+
+| Category | Examples | Promotion rule |
+|---|---|---|
+| exploit | XSS, SQLi, SSRF, XXE, SSTI, LFI, IDOR | Required proof keys must have real values |
+| observed | headers, cookies, TLS, CORS, methods, redirect, exposed files, API spec/JWT/GraphQL | At least one observed response field per contract (e.g. `url` + `status_code`, `allow`, `location` + `canary`) |
+| heuristic | auth-page hygiene, JS secrets, CSRF tokens, unauth API guesses | Never promoted; stays `suspected` |
+| external | Nuclei, Burp, plugins | Never promoted; stays `suspected` |
+
+`effective_verification()` is a pure validator reused by the API read paths, reports and AI
+context, so legacy rows that claim `verified` without supporting evidence render as
+`suspected` with a `verification_reason`. The persisted rows can be corrected in place with
+`python -m venomscan_api.audit_verification` (dry-run first; the tool writes a JSON backup of
+every changed row before committing).
+
 ---
 
 ## 10. AI intelligence engine

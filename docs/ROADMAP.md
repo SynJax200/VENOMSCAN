@@ -97,9 +97,11 @@ smoothly, every recon module has tests, no request bypasses `SafeHttpClient`.
   clickjacking, HTTP methods, open redirect canaries, auth-page hygiene, cache policy and
   session-cookie scope. Probe checks use canaries and skip HTML fallbacks; secret matches are
   masked in evidence.
-- Verifier auto-verifies deterministic checks and keeps heuristic ones suspected;
-  risk = impact × (0.6 + 0.4 × confidence/10); within-scan dedupe unchanged, with cross-scan
-  merge by dedup key and an `occurrences` count in the findings API and UI.
+- Verifier promotes only evidence-backed findings: deterministic families require the
+  observed response, exploit checks require their proof keys, and heuristic/external checks
+  are never auto-promoted; risk = impact × (0.6 + 0.4 × confidence/10); within-scan dedupe
+  unchanged, with cross-scan merge by dedup key and an `occurrences` count in the findings
+  API and UI.
 - `GET /api/checks`, `GET/PUT /api/settings` (workspace profile + disabled modules, validated
   against the registry, CSRF-protected, audited), applied by the runner to every scan.
 - Settings page (profile picker, module toggles, dirty tracking) and learning-mode panel on
@@ -450,8 +452,8 @@ Closed the four previously listed module gaps:
   it still runs only for `active` scans with explicit consent.
 - **Deployment runbook + registration switch** — `docs/DEPLOYMENT.md` walks DNS → firewall →
   secret rotation → first start → TLS verification → demo removal → 18-point post-deploy
-  checklist, and `ALLOW_REGISTRATION` (default `true`) closes public sign-up after onboarding
-  (`403 Registration is closed on this installation`).
+  checklist, and `ALLOW_REGISTRATION` (default `false`; set `true` only for onboarding)
+  closes public sign-up (`403 Registration is closed on this installation`).
 - **Self-contained deployment bundle** — `release/venomscan-deploy/` ships source, compose,
   Caddyfile, Dockerfiles, templates, scripts and docs with `install.sh` (Docker/ports/DNS
   checks, secret generation, Nuclei download, build, health wait) and `smoke.sh`

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 
 import httpx
 import pytest
 import pytest_asyncio
 from venomscan_api.config import Settings
+from venomscan_api.deps import client_ip
 from venomscan_api.main import create_app
 from venomscan_api.routers import scans as scans_router
 
@@ -17,6 +19,7 @@ def api_settings(tmp_path) -> Settings:
         database_url=f"sqlite:///{tmp_path / 'api.db'}",
         secret_key="test-secret-key-that-is-long-enough-for-hs256",
         environment="test",
+        allow_registration=True,
         allow_private_targets=True,
         scan_max_requests=5,
         scan_max_seconds=5,
@@ -407,7 +410,11 @@ async def test_test_account_credentials_stay_masked(client):
     from venomscan_api.db import session_factory
 
     await register(client)
+    target = await post(
+        client, "/api/targets", {"name": "Creds", "url": "https://creds.example.com"}
+    )
     payload = {
+        "target_id": target.json()["id"],
         "label": "alice",
         "role": "user",
         "identity": "alice@demo.test",
@@ -446,16 +453,24 @@ async def test_test_account_credentials_stay_masked(client):
 @pytest.mark.asyncio
 async def test_invalid_credential_headers_are_rejected(client):
     await register(client)
+    target = await post(
+        client, "/api/targets", {"name": "Bad headers", "url": "https://bad.example.com"}
+    )
+    target_id = target.json()["id"]
     bad_name = await post(
         client,
         "/api/settings/credentials",
-        {"label": "bad", "headers": {"Bad Header": "x"}},
+        {"target_id": target_id, "label": "bad", "headers": {"Bad Header": "x"}},
     )
     assert bad_name.status_code == 422
     newline = await post(
         client,
         "/api/settings/credentials",
-        {"label": "bad", "headers": {"X-Test": "value\r\nInjected: 1"}},
+        {
+            "target_id": target_id,
+            "label": "bad",
+            "headers": {"X-Test": "value\r\nInjected: 1"},
+        },
     )
     assert newline.status_code == 422
 
@@ -473,7 +488,7 @@ async def test_ai_settings_hide_the_key(client):
         {
             "provider": "openai_compat",
             "model": "test-model",
-            "base_url": "http://127.0.0.1:9999/v1",
+            "base_url": "https://api.openai.com/v1",
             "api_key": "sk-secret-value",
         },
     )
@@ -492,3 +507,249 @@ async def test_ai_settings_hide_the_key(client):
         {"provider": "openai_compat", "model": "test-model", "base_url": "", "api_key": ""},
     )
     assert cleared.json()["key_configured"] is False
+
+
+@pytest.mark.asyncio
+async def test_admin_only_global_settings_and_ai_configuration(api_settings, monkeypatch):
+    monkeypatch.setattr(scans_router, "dispatch", lambda scan_id: None)
+    app = create_app(api_settings)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with (
+            httpx.AsyncClient(transport=transport, base_url="http://testserver") as admin,
+            httpx.AsyncClient(transport=transport, base_url="http://testserver") as user,
+        ):
+            await register(admin, "admin@example.com")
+            me = await admin.get("/api/auth/me")
+            assert me.json()["role"] == "admin"
+
+            await register(user, "user@example.com")
+            assert (await user.get("/api/auth/me")).json()["role"] == "user"
+
+            assert (await user.get("/api/settings/ai")).status_code == 403
+            assert (
+                await put(user, "/api/settings", {"scan_defaults": {"profile": "passive"}})
+            ).status_code == 403
+            assert (
+                await put(
+                    user,
+                    "/api/settings/ai",
+                    {
+                        "provider": "openai_compat",
+                        "model": "test-model",
+                        "base_url": "https://api.openai.com/v1",
+                        "api_key": "sk-user",
+                    },
+                )
+            ).status_code == 403
+            assert (await post(user, "/api/settings/ai/test")).status_code == 403
+
+            assert (await admin.get("/api/settings/ai")).status_code == 200
+            assert (
+                await put(admin, "/api/settings", {"scan_defaults": {"profile": "passive"}})
+            ).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_ai_base_url_rejects_private_and_unapproved_destinations(client):
+    await register(client)
+    private = await put(
+        client,
+        "/api/settings/ai",
+        {
+            "provider": "openai_compat",
+            "model": "test-model",
+            "base_url": "http://127.0.0.1:9999/v1",
+            "api_key": "sk-secret",
+        },
+    )
+    assert private.status_code == 422
+
+    unapproved = await put(
+        client,
+        "/api/settings/ai",
+        {
+            "provider": "openai_compat",
+            "model": "test-model",
+            "base_url": "https://attacker.example/v1",
+            "api_key": "sk-secret",
+        },
+    )
+    assert unapproved.status_code == 422
+
+    suffix = await put(
+        client,
+        "/api/settings/ai",
+        {
+            "provider": "openai_compat",
+            "model": "test-model",
+            "base_url": "https://api.openai.com.attacker.example/v1",
+            "api_key": "sk-secret",
+        },
+    )
+    assert suffix.status_code == 422
+
+    allowed = await put(
+        client,
+        "/api/settings/ai",
+        {
+            "provider": "openai_compat",
+            "model": "test-model",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-secret",
+        },
+    )
+    assert allowed.status_code == 200, allowed.text
+
+    ollama = await put(
+        client,
+        "/api/settings/ai",
+        {
+            "provider": "ollama",
+            "model": "test-model",
+            "base_url": "http://127.0.0.1:11434",
+            "api_key": None,
+        },
+    )
+    assert ollama.status_code == 200, ollama.text
+
+
+@pytest.mark.asyncio
+async def test_credentials_are_owner_and_target_scoped(api_settings, monkeypatch):
+    from venomscan_api.services.runner import _auth_accounts
+
+    monkeypatch.setattr(scans_router, "dispatch", lambda scan_id: None)
+    app = create_app(api_settings)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with (
+            httpx.AsyncClient(transport=transport, base_url="http://testserver") as first,
+            httpx.AsyncClient(transport=transport, base_url="http://testserver") as second,
+        ):
+            await register(first, "first@example.com")
+            await register(second, "second@example.com")
+
+            first_target = await post(
+                first, "/api/targets", {"name": "First", "url": "https://first.example.com"}
+            )
+            second_target = await post(
+                second, "/api/targets", {"name": "Second", "url": "https://second.example.com"}
+            )
+            first_target_id = first_target.json()["id"]
+            second_target_id = second_target.json()["id"]
+
+            first_cred = await post(
+                first,
+                "/api/settings/credentials",
+                {
+                    "target_id": first_target_id,
+                    "label": "first-account",
+                    "headers": {"Authorization": "Bearer first-token"},
+                },
+            )
+            assert first_cred.status_code == 201, first_cred.text
+            second_cred = await post(
+                second,
+                "/api/settings/credentials",
+                {
+                    "target_id": second_target_id,
+                    "label": "second-account",
+                    "headers": {"Authorization": "Bearer second-token"},
+                },
+            )
+            assert second_cred.status_code == 201, second_cred.text
+
+            assert [row["label"] for row in (await first.get("/api/settings/credentials")).json()] == [
+                "first-account"
+            ]
+            assert [row["label"] for row in (await second.get("/api/settings/credentials")).json()] == [
+                "second-account"
+            ]
+            hijack_target = await post(
+                second,
+                "/api/settings/credentials",
+                {
+                    "target_id": first_target_id,
+                    "label": "hijack",
+                    "headers": {"Authorization": "Bearer nope"},
+                },
+            )
+            assert hijack_target.status_code == 404
+            assert (
+                await second.delete(
+                    f"/api/settings/credentials/{first_cred.json()['id']}",
+                    headers={"x-csrf-token": await csrf(second)},
+                )
+            ).status_code == 404
+
+            await post(
+                first,
+                f"/api/targets/{first_target_id}/verify/attest",
+                {
+                    "attestation": "I own this first target and authorize the assessment.",
+                    "accepted": True,
+                },
+            )
+            await post(
+                second,
+                f"/api/targets/{second_target_id}/verify/attest",
+                {
+                    "attestation": "I own this second target and authorize the assessment.",
+                    "accepted": True,
+                },
+            )
+            first_scan = await post(
+                first,
+                "/api/scans",
+                {"target_id": first_target_id, "profile": "active", "active_consent": True},
+            )
+            second_scan = await post(
+                second,
+                "/api/scans",
+                {"target_id": second_target_id, "profile": "active", "active_consent": True},
+            )
+            assert first_scan.status_code == 201, first_scan.text
+            assert second_scan.status_code == 201, second_scan.text
+
+            assert [row["label"] for row in _auth_accounts(api_settings, first_scan.json()["id"])] == [
+                "first-account"
+            ]
+            assert [row["label"] for row in _auth_accounts(api_settings, second_scan.json()["id"])] == [
+                "second-account"
+            ]
+
+
+def _ip_request(peer: str, forwarded: str | None = None, trusted: str = ""):
+    settings = Settings(
+        _env_file=None,
+        database_url="sqlite://",
+        secret_key="test-secret-key-that-is-long-enough-for-hs256",
+        environment="test",
+        trusted_proxies=trusted,
+    )
+    headers = {"x-forwarded-for": forwarded} if forwarded else {}
+    return SimpleNamespace(
+        client=SimpleNamespace(host=peer),
+        headers=headers,
+        app=SimpleNamespace(state=SimpleNamespace(settings=settings)),
+    )
+
+
+def test_client_ip_ignores_forwarded_header_from_untrusted_peer():
+    request = _ip_request("8.8.8.8", "203.0.113.9")
+    assert client_ip(request) == "8.8.8.8"
+
+
+def test_client_ip_uses_last_forwarded_hop_from_internal_proxy():
+    request = _ip_request("172.18.0.4", "1.2.3.4, 203.0.113.9")
+    assert client_ip(request) == "203.0.113.9"
+
+
+def test_client_ip_honors_explicitly_trusted_public_proxy():
+    request = _ip_request("8.8.8.8", "203.0.113.9", trusted="8.8.8.8")
+    assert client_ip(request) == "203.0.113.9"
+
+
+def test_client_ip_normalizes_mapped_ipv6_and_skips_invalid_hops():
+    request = _ip_request("::ffff:172.18.0.4", "not-an-ip, ::ffff:203.0.113.9")
+    assert client_ip(request) == "203.0.113.9"

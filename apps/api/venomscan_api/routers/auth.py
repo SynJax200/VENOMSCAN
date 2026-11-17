@@ -16,7 +16,13 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 def _user_out(user: User) -> UserOut:
-    return UserOut(id=user.id, email=user.email, name=user.name, created_at=user.created_at)
+    return UserOut(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        created_at=user.created_at,
+    )
 
 
 def _auth_response(response: Response, user: User, settings: Settings) -> AuthOut:
@@ -46,9 +52,11 @@ def register(
         raise HTTPException(status_code=403, detail="Registration is closed on this installation")
     if db.scalar(select(User).where(User.email == payload.email)):
         raise HTTPException(status_code=409, detail="An account with this email already exists")
+    first_user = db.scalar(select(User.id).limit(1)) is None
     user = User(
         email=payload.email,
         name=payload.name.strip() or payload.email.split("@")[0],
+        role="admin" if first_user else "user",
         password_hash=security.hash_password(payload.password),
     )
     db.add(user)

@@ -181,7 +181,10 @@ class ApiAuthConfigCheck:
                     cwe=["CWE-319"],
                     owasp=["A02:2021 Cryptographic Failures"],
                     request_evidence={"method": "GET", "url": url},
-                    response_evidence={"servers": list(primary.get("servers") or [])},
+                    response_evidence={
+                        "spec": url,
+                        "servers": list(primary.get("servers") or []),
+                    },
                 )
             )
 
@@ -218,6 +221,8 @@ class ApiAuthConfigCheck:
                     owasp=["API2:2023 Broken Authentication"],
                     request_evidence={"method": "GET", "url": url},
                     response_evidence={
+                        "spec": url,
+                        "declared_auth": bool(primary.get("declared_auth")),
                         "security_schemes": list(primary.get("security_schemes") or []),
                         "global_security": bool(primary.get("global_security")),
                     },

@@ -48,8 +48,8 @@ definition; attacks against it are governed by [SAFETY.md](SAFETY.md).
 ## Security review checklist (Phase 7)
 
 - [x] All target traffic passes `SafeHttpClient`; no direct `httpx`/`requests` calls to
-  target hosts elsewhere (the `/demo` fixtures are deliberate lab targets in the API
-  itself).
+  target hosts elsewhere (the `/demo` fixtures are deliberate lab targets, mounted only
+  when `DEMO_ENABLED=true` outside production).
 - [x] Redirects re-validated hop by hop; proxy support validated as http/https only.
 - [x] Burp import is all-or-nothing on scope; 5 MB cap; XML parsed with the standard
   library, no external entity resolution.

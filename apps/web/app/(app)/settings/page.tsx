@@ -8,7 +8,16 @@ import { SeverityBadge } from "@/components/badges";
 import { IntegrationsCard } from "@/components/integrations";
 import { Button, Card, CardHeader, Notice, Skeleton } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
-import type { AiProviderTest, AiSettings, CheckInfo, Credential, ScanProfile, WorkspaceSettings } from "@/lib/types";
+import type {
+  AiProviderTest,
+  AiSettings,
+  CheckInfo,
+  Credential,
+  ScanProfile,
+  Target,
+  User,
+  WorkspaceSettings,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const profiles: { value: ScanProfile; title: string; description: string }[] = [
@@ -34,7 +43,10 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<ScanProfile>("safe");
   const [disabled, setDisabled] = useState<string[]>([]);
   const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [targets, setTargets] = useState<Target[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [accountForm, setAccountForm] = useState({
+    target_id: "",
     label: "",
     role: "user",
     identity: "",
@@ -61,33 +73,48 @@ export default function SettingsPage() {
   const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      api.get<CheckInfo[]>("/api/checks"),
-      api.get<WorkspaceSettings>("/api/settings"),
-      api.get<Credential[]>("/api/settings/credentials"),
-      api.get<AiSettings>("/api/settings/ai"),
-    ])
-      .then(([catalog, settings, accounts, aiSettings]) => {
+    async function load() {
+      try {
+        const [catalog, settings, accounts, me, targetRows] = await Promise.all([
+          api.get<CheckInfo[]>("/api/checks"),
+          api.get<WorkspaceSettings>("/api/settings"),
+          api.get<Credential[]>("/api/settings/credentials"),
+          api.get<User>("/api/auth/me"),
+          api.get<Target[]>("/api/targets"),
+        ]);
         setChecks(catalog);
         setProfile(settings.scan_defaults.profile);
         setDisabled(settings.disabled_checks);
         setCredentials(accounts);
-        setAi(aiSettings);
-        setAiForm({
-          provider: aiSettings.provider,
-          model: aiSettings.model,
-          base_url: aiSettings.base_url,
-          api_key: "",
-        });
-      })
-      .catch((err) =>
+        setTargets(targetRows);
+        setUser(me);
+        setAccountForm((current) => ({
+          ...current,
+          target_id: current.target_id || targetRows[0]?.id || "",
+        }));
+        if (me.role === "admin") {
+          const aiSettings = await api.get<AiSettings>("/api/settings/ai");
+          setAi(aiSettings);
+          setAiForm({
+            provider: aiSettings.provider,
+            model: aiSettings.model,
+            base_url: aiSettings.base_url,
+            api_key: "",
+          });
+        }
+      } catch (err) {
         setNotice({
           tone: "danger",
           text: err instanceof ApiError ? err.detail : "Could not load workspace settings",
-        }),
-      )
-      .finally(() => setLoading(false));
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    void load();
   }, []);
+
+  const isAdmin = user?.role === "admin";
 
   const groups = useMemo(() => {
     const map = new Map<string, CheckInfo[]>();
@@ -134,6 +161,7 @@ export default function SettingsPage() {
     setAccountNotice(null);
     try {
       const created = await api.post<Credential>("/api/settings/credentials", {
+        target_id: accountForm.target_id,
         label: accountForm.label,
         role: accountForm.role,
         identity: accountForm.identity,
@@ -141,6 +169,7 @@ export default function SettingsPage() {
       });
       setCredentials((current) => [...current, created]);
       setAccountForm({
+        target_id: accountForm.target_id,
         label: "",
         role: "user",
         identity: "",
@@ -149,7 +178,7 @@ export default function SettingsPage() {
       });
       setAccountNotice({
         tone: "success",
-        text: "Test account stored encrypted. Active scans can now use it for authorization checks.",
+        text: "Test account stored encrypted and scoped to that target. Only active scans of the same target can use it.",
       });
     } catch (err) {
       setAccountNotice({
@@ -238,7 +267,7 @@ export default function SettingsPage() {
         title="Scan defaults and modules"
         description="Defaults apply when a scan does not choose a profile. Disabled checks are removed from the engine registry for every scan from this workspace."
         actions={
-          <Button onClick={save} disabled={saving || !dirty || loading}>
+          <Button onClick={save} disabled={saving || !dirty || loading || !isAdmin}>
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
             Save changes
           </Button>
@@ -248,6 +277,15 @@ export default function SettingsPage() {
       {notice ? (
         <div className="mb-4">
           <Notice tone={notice.tone}>{notice.text}</Notice>
+        </div>
+      ) : null}
+
+      {!loading && !isAdmin ? (
+        <div className="mb-4">
+          <Notice tone="danger">
+            Workspace defaults and AI provider settings are administrator-only. Target-scoped
+            test accounts remain available below.
+          </Notice>
         </div>
       ) : null}
 
@@ -376,7 +414,9 @@ export default function SettingsPage() {
                         </p>
                         <p className="mt-0.5 truncate font-mono text-[11px] text-slate-400">
                           {account.identity || "no identity marker"} ·{" "}
-                          {account.header_names.join(", ")}
+                          {account.header_names.join(", ")} ·{" "}
+                          {targets.find((target) => target.id === account.target_id)?.name ??
+                            "unscoped legacy row"}
                         </p>
                       </div>
                       <Button
@@ -392,6 +432,26 @@ export default function SettingsPage() {
               )}
 
               <div className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="label" htmlFor="account-target">
+                    Target
+                  </label>
+                  <select
+                    id="account-target"
+                    className="field"
+                    value={accountForm.target_id}
+                    onChange={(event) =>
+                      setAccountForm({ ...accountForm, target_id: event.target.value })
+                    }
+                  >
+                    {targets.length === 0 ? <option value="">Add a target first</option> : null}
+                    {targets.map((target) => (
+                      <option key={target.id} value={target.id}>
+                        {target.name} · {target.url}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="label" htmlFor="account-label">
                     Label
@@ -483,6 +543,7 @@ export default function SettingsPage() {
                   disabled={
                     addingAccount ||
                     credentials.length >= 3 ||
+                    !accountForm.target_id ||
                     accountForm.label.trim().length < 2 ||
                     accountForm.headerValue.trim().length === 0
                   }
@@ -494,6 +555,7 @@ export default function SettingsPage() {
             </div>
           </Card>
 
+          {isAdmin ? (
           <Card>
             <CardHeader
               title={
@@ -604,6 +666,7 @@ export default function SettingsPage() {
               </div>
             </div>
           </Card>
+          ) : null}
 
           <IntegrationsCard />
 
