@@ -4,6 +4,7 @@ import time
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlsplit
 
+import httpcore
 import httpx
 
 from venomscan_engine.control import ScanCancelled
@@ -11,6 +12,47 @@ from venomscan_engine.safety.ratelimit import TokenBucket
 from venomscan_engine.safety.redact import redact_headers, redact_text
 from venomscan_engine.safety.scope import Scope, ScopeViolation
 from venomscan_engine.safety.ssrf import SSRFBlocked, assert_host_allowed
+
+
+class _PinnedNetworkBackend(httpcore.AsyncNetworkBackend):
+    """Dial the address that passed SSRF validation instead of re-resolving it.
+
+    Without pinning a hostile DNS record could return a public address to the
+    SSRF pre-check and a private one to the TCP connect that follows (TOCTOU).
+    """
+
+    def __init__(self, pins: dict[str, str]) -> None:
+        self._pins = pins
+        self._inner = httpcore.AnyIOBackend()
+
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,  # noqa: ASYNC109 - required by the httpcore interface
+        local_address: str | None = None,
+        socket_options: list | None = None,
+    ) -> httpcore.AsyncNetworkStream:
+        return await self._inner.connect_tcp(
+            self._pins.get(host.strip("[]").lower(), host),
+            port,
+            timeout=timeout,
+            local_address=local_address,
+            socket_options=socket_options,
+        )
+
+    async def connect_unix_socket(
+        self,
+        path: str,
+        timeout: float | None = None,  # noqa: ASYNC109 - required by the httpcore interface
+        socket_options: list | None = None,
+    ) -> httpcore.AsyncNetworkStream:
+        return await self._inner.connect_unix_socket(
+            path, timeout=timeout, socket_options=socket_options
+        )
+
+    async def sleep(self, seconds: float) -> None:
+        await self._inner.sleep(seconds)
 
 
 class TargetUnreachable(RuntimeError):
@@ -98,13 +140,27 @@ class SafeHttpClient:
         self._client: httpx.AsyncClient | None = None
         self._requests = 0
         self._started = time.monotonic()
+        self._pins: dict[str, str] = {}
+
+    def _pinned_transport(self) -> httpx.AsyncBaseTransport:
+        transport = httpx.AsyncHTTPTransport()
+        # httpx exposes no network_backend hook, but its transport routes every
+        # connection through self._pool, so a pinned httpcore pool is enough.
+        transport._pool = httpcore.AsyncConnectionPool(
+            ssl_context=httpx.create_ssl_context(),
+            max_connections=100,
+            max_keepalive_connections=20,
+            keepalive_expiry=5.0,
+            network_backend=_PinnedNetworkBackend(self._pins),
+        )
+        return transport
 
     async def __aenter__(self) -> SafeHttpClient:
         self._client = httpx.AsyncClient(
             follow_redirects=False,
             timeout=httpx.Timeout(self.timeout, connect=min(self.timeout, 5.0)),
             headers={"User-Agent": self._user_agent, "Accept": "*/*"},
-            transport=None if self._proxy_url else self._transport,
+            transport=None if self._proxy_url else (self._transport or self._pinned_transport()),
             proxy=self._proxy_url,
             # Ignore ambient HTTP(S)_PROXY/NO_PROXY: outbound traffic must only follow
             # the validated scope, and malformed NO_PROXY entries break URL parsing.
@@ -142,7 +198,9 @@ class SafeHttpClient:
         kwargs = {"allow_private": self.allow_private}
         if self._resolver is not None:
             kwargs["resolver"] = self._resolver
-        await assert_host_allowed(parts.hostname or "", port, **kwargs)
+        host = (parts.hostname or "").strip("[]").lower()
+        addresses = await assert_host_allowed(host, port, **kwargs)
+        self._pins[host] = addresses[0]
 
     async def get(self, url: str, *, headers: dict[str, str] | None = None) -> ResponseBundle:
         return await self.request("GET", url, headers=headers)

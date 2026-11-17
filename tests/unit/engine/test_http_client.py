@@ -155,3 +155,111 @@ async def test_raw_body_is_forwarded_and_dropped_on_redirect(client_factory):
     assert seen[0].content == b"<note>hi</note>"
     assert seen[1].method == "GET"
     assert seen[1].content == b""
+
+
+async def _serve(payloads: dict[str, tuple[int, bytes, dict[str, str]]]) -> tuple[object, int]:
+    """Minimal one-shot-per-request HTTP server for pinning tests."""
+    import asyncio
+
+    async def handle(reader, writer) -> None:
+        raw = await reader.readuntil(b"\r\n\r\n")
+        path = raw.split(b" ")[1].decode("latin-1")
+        status, body, headers = payloads.get(path, (404, b"missing", {}))
+        head = f"HTTP/1.1 {status} X\r\nContent-Length: {len(body)}\r\nConnection: close\r\n"
+        head += "".join(f"{key}: {value}\r\n" for key, value in headers.items())
+        writer.write(head.encode("latin-1") + b"\r\n" + body)
+        await writer.drain()
+        writer.close()
+
+    server = await asyncio.start_server(handle, "127.0.0.1", 0)
+    return server, server.sockets[0].getsockname()[1]
+
+
+@pytest.mark.asyncio
+async def test_pinned_backend_rewrites_host_to_validated_address():
+    from venomscan_engine.safety.http import _PinnedNetworkBackend
+
+    class FakeInner:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, int]] = []
+
+        async def connect_tcp(self, host, port, **kwargs):
+            self.calls.append((host, port))
+            return "stream"
+
+    backend = _PinnedNetworkBackend({"example.com": "93.184.216.34"})
+    backend._inner = FakeInner()
+    assert await backend.connect_tcp("example.com", 443) == "stream"
+    assert await backend.connect_tcp("other.test", 80) == "stream"
+    assert backend._inner.calls == [("93.184.216.34", 443), ("other.test", 80)]
+
+
+@pytest.mark.asyncio
+async def test_client_dials_pinned_ip_and_never_re_resolves():
+    # "pinned.test" has no real DNS record; only the pin can reach the server.
+    server, port = await _serve({"/": (200, b"pinned", {})})
+
+    async def resolver(host: str, port_arg: int) -> list[str]:
+        return ["127.0.0.1"]
+
+    client = SafeHttpClient(
+        Scope(hosts=frozenset({"pinned.test"})),
+        resolver=resolver,
+        allow_private=True,
+        max_requests=5,
+        max_seconds=10,
+        rps=100,
+    )
+    try:
+        async with client:
+            bundle = await client.get(f"http://pinned.test:{port}/")
+        assert bundle.status_code == 200
+        assert bundle.body == "pinned"
+        assert client._pins == {"pinned.test": "127.0.0.1"}
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_redirect_host_is_validated_and_pinned_before_connecting():
+    import asyncio
+
+    port = 0
+
+    async def handle(reader, writer) -> None:
+        raw = await reader.readuntil(b"\r\n\r\n")
+        path = raw.split(b" ")[1].decode("latin-1")
+        if path == "/":
+            status, body, headers = 302, b"", {"Location": f"http://next.test:{port}/final"}
+        else:
+            status, body, headers = 200, b"final", {}
+        head = f"HTTP/1.1 {status} X\r\nContent-Length: {len(body)}\r\nConnection: close\r\n"
+        head += "".join(f"{key}: {value}\r\n" for key, value in headers.items())
+        writer.write(head.encode("latin-1") + b"\r\n" + body)
+        await writer.drain()
+        writer.close()
+
+    server = await asyncio.start_server(handle, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+
+    async def resolver(host: str, port_arg: int) -> list[str]:
+        return ["127.0.0.1"]
+
+    client = SafeHttpClient(
+        Scope(hosts=frozenset({"pinned.test", "next.test"})),
+        resolver=resolver,
+        allow_private=True,
+        max_requests=5,
+        max_seconds=10,
+        rps=100,
+    )
+    try:
+        async with client:
+            bundle = await client.get(f"http://pinned.test:{port}/")
+        assert bundle.url == f"http://next.test:{port}/final"
+        assert bundle.body == "final"
+        assert client._pins == {"pinned.test": "127.0.0.1", "next.test": "127.0.0.1"}
+    finally:
+        server.close()
+        await server.wait_closed()
