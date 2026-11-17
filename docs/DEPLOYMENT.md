@@ -302,6 +302,42 @@ docker compose --env-file infra/compose/.env.prod \
 
 ---
 
+## 13. Postgres, Redis, Celery and browser E2E verification
+
+Re-run this recipe after infrastructure changes; it exercises each component separately and then together.
+
+**Fresh Postgres.** Create an empty database, point a spare API at it and confirm startup creates the schema:
+
+```bash
+docker exec <postgres-container> psql -U venom -d postgres -c "CREATE DATABASE venomscan_phase8"
+DATABASE_URL=postgresql+psycopg://venom:venom@127.0.0.1:55432/venomscan_phase8 \
+  uv run uvicorn venomscan_api.main:app --host 127.0.0.1 --port 8011 --app-dir apps/api
+```
+
+`init_db()` creates 15 tables, the additive column upgrades and the `ix_*` indexes. On PostgreSQL the upgrade path renders JSON defaults as `'{}'::json` / `'[]'::json`; verify by dropping `scans.recon`, `users.role`, `endpoints.depth/parameters` and restarting the API. `python -m venomscan_api.audit_verification --dry-run` revalidates findings persisted before the evidence-bound verifier existed.
+
+**Redis login state.** Start two API processes with `LOGIN_STATE_BACKEND=redis` and the same `REDIS_URL`, fail one account 5 times on the first, and confirm the second returns `429` with `Retry-After: 900`. Keys are stored as `venomscan:login:{lock,acct,ip}:<sha256>` (no plaintext email); delete them to clear a test lockout, then confirm sign-in works again.
+
+**Celery worker.** Run the API with `TASK_MODE=celery` and the worker alongside it:
+
+```bash
+uv run python -m celery -A venomscan_workers.celery_app worker -l info --pool=solo
+```
+
+Register, add a target, `POST /api/targets/{id}/verify/attest` and start a `safe` scan. The worker log must show `venomscan.execute_scan ... succeeded`, the scan must move `queued → running → completed`, and JSON/PDF reports with signed links must download. Results are also stored under `celery-task-meta-*` in Redis.
+
+**Browser E2E.** The suite is opt-in; without `VENOMSCAN_E2E_BASE_URL` it is skipped, so normal unit runs stay browser-free.
+
+```bash
+cd apps/web
+NEXT_DIST_DIR=.next-e2e API_INTERNAL_URL=http://127.0.0.1:8011 npx next dev -p 3003
+VENOMSCAN_E2E_BASE_URL=http://127.0.0.1:3003 uv run python -m pytest tests/e2e -q
+```
+
+It drives register → add target → manual attestation → safe scan → findings in the UI. `NEXT_DIST_DIR` keeps the E2E build out of the development `.next/`. For local lab targets set `ALLOW_PRIVATE_TARGETS=true` and use a loopback IP (`http://127.0.0.1:33000/`): the hostname `localhost` is refused by the SSRF guard by design.
+
+---
+
 ## Rollback
 
 1. `docker compose ... down` (volumes persist).

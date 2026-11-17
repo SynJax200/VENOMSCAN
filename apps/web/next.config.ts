@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const apiBase = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   output: "standalone",
   reactStrictMode: true,
   async rewrites() {
