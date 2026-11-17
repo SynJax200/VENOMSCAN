@@ -415,6 +415,15 @@ export interface ScanEvent {
   created_at: string;
 }
 
+export interface CheckResultRow {
+  check_id: string;
+  name: string;
+  status: "running" | "completed" | "failed" | "skipped" | "cancelled";
+  findings: number;
+  duration_ms: number;
+  error: string;
+}
+
 export interface SeverityCounts {
   critical: number;
   high: number;

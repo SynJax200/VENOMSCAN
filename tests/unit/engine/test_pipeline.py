@@ -75,6 +75,42 @@ async def test_pipeline_produces_verified_findings(public_resolver):
 
 
 @pytest.mark.asyncio
+async def test_pipeline_records_per_check_outcomes(public_resolver):
+    sink = CollectingSink()
+    disabled = {"venom.headers.missing"}
+    result = await run_scan(
+        "scan-outcomes",
+        "http://example.com/",
+        profile="safe",
+        sink=sink,
+        transport=httpx.MockTransport(_handler),
+        resolver=public_resolver,
+        enable_dns=False,
+        enable_osint=False,
+        max_requests=40,
+        max_seconds=20,
+        rps=100,
+        disabled_checks=disabled,
+    )
+
+    started = {e.payload["check_id"] for e in sink.events if e.type == "check_started"}
+    finished = {e.payload["check_id"] for e in sink.events if e.type == "check_finished"}
+    failed = {e.payload["check_id"] for e in sink.events if e.type == "check_failed"}
+    skipped = {e.payload["check_id"] for e in sink.events if e.type == "check_skipped"}
+
+    assert finished | failed == started
+    assert skipped == disabled
+    assert started and started.isdisjoint(disabled)
+    assert result.findings
+
+    finished_events = [e for e in sink.events if e.type == "check_finished"]
+    assert all(e.payload["name"] for e in finished_events)
+    assert all(isinstance(e.payload["duration_ms"], int) for e in finished_events)
+    assert any(e.payload["findings"] >= 1 for e in finished_events)
+    assert all(e.progress >= 62 for e in finished_events)
+
+
+@pytest.mark.asyncio
 async def test_pipeline_rejects_unknown_profile(public_resolver):
     with pytest.raises(ValueError):
         await run_scan(

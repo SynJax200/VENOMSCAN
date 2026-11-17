@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
+from sqlalchemy import select
 from venomscan_api import security
 from venomscan_api.config import Settings
 from venomscan_api.db import init_db, init_engine, session_factory, utcnow
-from venomscan_api.models import Authorization, Scan, Target, User
+from venomscan_api.models import Authorization, CheckResult, Scan, Target, User
 from venomscan_api.services import runner
 from venomscan_engine import EndpointRecord, Finding, ScanResult, ScanStats, Severity, Technology
 from venomscan_engine.events import ScanEvent
@@ -193,6 +194,69 @@ def test_execute_scan_records_failure(database, monkeypatch):
         scan = db.get(Scan, scan_id)
         assert scan.status == "failed"
         assert "connection refused" in scan.error
+
+
+def test_execute_scan_records_check_results(database, monkeypatch):
+    scan_id = _seed_scan()
+
+    async def outcome_engine(
+        scan_id: str,
+        target_url: str,
+        profile: str,
+        settings,
+        active_consent,
+        cancel_check=None,
+        oob=None,
+        auth_accounts=None,
+    ):
+        sink = runner.DbEventSink(scan_id)
+
+        async def emit(event_type: str, check_id: str, name: str, **payload):
+            await sink.emit(
+                ScanEvent(
+                    phase="analyzing",
+                    type=event_type,
+                    message=f"{name}: {event_type}",
+                    progress=70,
+                    payload={"check_id": check_id, "name": name, **payload},
+                )
+            )
+
+        await emit("check_started", "venom.headers.missing", "Security headers")
+        await emit("check_finished", "venom.headers.missing", "Security headers", findings=1, duration_ms=42)
+        await emit("check_started", "venom.cookies.flags", "Cookie flags")
+        await emit("check_failed", "venom.cookies.flags", "Cookie flags", error="boom", duration_ms=5)
+        await emit("check_skipped", "venom.secrets.js", "JS secrets", reason="disabled")
+        await emit("check_started", "venom.session", "Session cookies")
+        raise RuntimeError("engine exploded")
+
+    monkeypatch.setattr(runner, "_run_engine", outcome_engine)
+    runner.execute_scan(scan_id)
+
+    with session_factory()() as db:
+        scan = db.get(Scan, scan_id)
+        assert scan.status == "failed"
+        rows = {
+            row.check_id: row
+            for row in db.scalars(select(CheckResult).where(CheckResult.scan_id == scan_id))
+        }
+        assert set(rows) == {
+            "venom.headers.missing",
+            "venom.cookies.flags",
+            "venom.secrets.js",
+            "venom.session",
+        }
+        assert rows["venom.headers.missing"].status == "completed"
+        assert rows["venom.headers.missing"].findings == 1
+        assert rows["venom.headers.missing"].duration_ms == 42
+        assert rows["venom.headers.missing"].name == "Security headers"
+        assert rows["venom.cookies.flags"].status == "failed"
+        assert rows["venom.cookies.flags"].error == "boom"
+        assert rows["venom.secrets.js"].status == "skipped"
+        assert rows["venom.secrets.js"].error == "disabled"
+        # the in-flight check is closed out when the scan fails
+        assert rows["venom.session"].status == "failed"
+        assert "engine exploded" in rows["venom.session"].error
 
 
 def test_execute_scan_respects_cancellation(database, monkeypatch):

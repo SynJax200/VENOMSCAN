@@ -114,6 +114,9 @@ class Scan(Base):
     endpoints: Mapped[list[Endpoint]] = relationship(
         back_populates="scan", cascade="all, delete-orphan"
     )
+    check_results: Mapped[list[CheckResult]] = relationship(
+        back_populates="scan", cascade="all, delete-orphan", order_by="CheckResult.check_id"
+    )
 
     @property
     def active(self) -> bool:
@@ -141,6 +144,28 @@ class ScanEvent(Base):
     scan: Mapped[Scan] = relationship(back_populates="events")
 
     __table_args__ = (Index("ix_scan_events_scan_id_id", "scan_id", "id"),)
+
+
+class CheckResult(Base):
+    """Terminal outcome of every check planned for a scan."""
+
+    __tablename__ = "check_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    scan_id: Mapped[str] = mapped_column(ForeignKey("scans.id", ondelete="CASCADE"), index=True)
+    check_id: Mapped[str] = mapped_column(String(80))
+    name: Mapped[str] = mapped_column(String(200), default="")
+    status: Mapped[str] = mapped_column(String(16), default="running")
+    findings: Mapped[int] = mapped_column(Integer, default=0)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    scan: Mapped[Scan] = relationship(back_populates="check_results")
+
+    __table_args__ = (
+        UniqueConstraint("scan_id", "check_id", name="uq_check_results_scan_check"),
+    )
 
 
 class Finding(Base):

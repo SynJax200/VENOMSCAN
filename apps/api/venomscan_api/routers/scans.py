@@ -13,9 +13,10 @@ from venomscan_engine.intel import IntelReport, lookup
 
 from venomscan_api.db import get_db, session_factory, utcnow
 from venomscan_api.deps import client_ip, get_current_user, require_csrf
-from venomscan_api.models import Finding, Scan, Target, User
+from venomscan_api.models import CheckResult, Finding, Scan, Target, User
 from venomscan_api.models import ScanEvent as ScanEventRow
 from venomscan_api.schemas import (
+    CheckResultOut,
     CompareFinding,
     FindingOut,
     ScanCompareOut,
@@ -263,6 +264,21 @@ def scan_findings(
 ) -> list[FindingOut]:
     scan = _owned_scan(db, scan_id, user)
     return [finding_out(f) for f in sorted(scan.findings, key=lambda f: -f.risk_score)]
+
+
+@router.get("/{scan_id}/check_results", response_model=list[CheckResultOut])
+def scan_check_results(
+    scan_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[CheckResultOut]:
+    scan = _owned_scan(db, scan_id, user)
+    rows = db.scalars(
+        select(CheckResult)
+        .where(CheckResult.scan_id == scan.id)
+        .order_by(CheckResult.check_id)
+    ).all()
+    return [CheckResultOut.model_validate(row, from_attributes=True) for row in rows]
 
 
 @router.get("/{scan_id}/events", response_model=list[ScanEventOut])

@@ -41,6 +41,7 @@ import type {
   AiAnalysis,
   ApiIntel,
   AssistantAnswer,
+  CheckResultRow,
   Endpoint,
   EndpointIntel,
   EndpointState,
@@ -84,6 +85,7 @@ export default function ScanDetailPage() {
   const id = params.id;
   const [scan, setScan] = useState<ScanDetail | null>(null);
   const [events, setEvents] = useState<ScanEvent[]>([]);
+  const [checkResults, setCheckResults] = useState<CheckResultRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [stream, setStream] = useState<"connecting" | "live" | "polling" | "closed">("connecting");
   const [cancelling, setCancelling] = useState(false);
@@ -110,8 +112,12 @@ export default function ScanDetailPage() {
   }, []);
 
   const refresh = useCallback(async () => {
-    const detail = await api.get<ScanDetail>(`/api/scans/${id}`);
+    const [detail, checks] = await Promise.all([
+      api.get<ScanDetail>(`/api/scans/${id}`),
+      api.get<CheckResultRow[]>(`/api/scans/${id}/check_results`).catch(() => [] as CheckResultRow[]),
+    ]);
     setScan(detail);
+    setCheckResults(checks);
     return detail;
   }, [id]);
 
@@ -176,13 +182,15 @@ export default function ScanDetailPage() {
     let active = true;
     (async () => {
       try {
-        const [detail, history] = await Promise.all([
+        const [detail, history, checks] = await Promise.all([
           api.get<ScanDetail>(`/api/scans/${id}`),
           api.get<ScanEvent[]>(`/api/scans/${id}/events`),
+          api.get<CheckResultRow[]>(`/api/scans/${id}/check_results`).catch(() => [] as CheckResultRow[]),
         ]);
         if (!active) return;
         setScan(detail);
         setEvents(history);
+        setCheckResults(checks);
         if (terminalStatuses.has(detail.status)) {
           setStream("closed");
           return;
@@ -309,6 +317,10 @@ export default function ScanDetailPage() {
 
   const active = !terminalStatuses.has(scan.status);
   const currentPhase = phases.indexOf(scan.phase);
+  const checkCounts = checkResults.reduce(
+    (acc, row) => ({ ...acc, [row.status]: (acc[row.status] ?? 0) + 1 }),
+    {} as Record<string, number>,
+  );
   const recon: Recon = scan.recon ?? {};
   const dnsEntries = Object.entries(recon.dns?.records ?? {});
   const crawl = recon.crawl ?? {};
@@ -881,6 +893,67 @@ export default function ScanDetailPage() {
           </Card>
         </div>
       </div>
+
+      {checkResults.length > 0 ? (
+        <Card className="mt-4">
+          <CardHeader
+            title="Check coverage"
+            subtitle={`${checkResults.length} check(s) recorded · ${
+              checkCounts.completed ?? 0
+            } completed · ${checkCounts.skipped ?? 0} skipped · ${checkCounts.failed ?? 0} failed`}
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[12px]">
+              <thead>
+                <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.08em] text-slate-400">
+                  <th className="px-5 py-2 font-semibold">Check</th>
+                  <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold">Findings</th>
+                  <th className="px-5 py-2 text-right font-semibold">Duration</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {checkResults.map((row) => (
+                  <tr key={row.check_id}>
+                    <td className="px-5 py-2">
+                      <p className="font-medium text-ink">{row.name || row.check_id}</p>
+                      <p className="font-mono text-[10.5px] text-slate-400">{row.check_id}</p>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        title={row.error || undefined}
+                        className={cn(
+                          "inline-flex rounded-full border px-2 py-0.5 text-[10.5px] font-medium capitalize",
+                          row.status === "completed"
+                            ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-300"
+                            : row.status === "failed"
+                              ? "border-red-400/25 bg-red-500/10 text-red-300"
+                              : row.status === "skipped"
+                                ? "border-amber-400/25 bg-amber-500/10 text-amber-300"
+                                : row.status === "running"
+                                  ? "border-cyan-400/25 bg-cyan-500/10 text-cyan-300"
+                                  : "border-line bg-white/[0.04] text-slate-400",
+                        )}
+                      >
+                        {row.status}
+                      </span>
+                      {row.status === "failed" && row.error ? (
+                        <p className="mt-0.5 max-w-[260px] truncate text-[10.5px] text-red-300/80">
+                          {row.error}
+                        </p>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums text-slate-600">{row.findings}</td>
+                    <td className="px-5 py-2 text-right tabular-nums text-slate-500">
+                      {row.duration_ms > 0 ? `${(row.duration_ms / 1000).toFixed(2)}s` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="mt-4">
         <CardHeader

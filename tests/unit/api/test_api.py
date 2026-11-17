@@ -10,7 +10,7 @@ from venomscan_api.config import Settings
 from venomscan_api.db import session_factory
 from venomscan_api.deps import client_ip
 from venomscan_api.main import create_app
-from venomscan_api.models import Finding
+from venomscan_api.models import CheckResult, Finding
 from venomscan_api.routers import scans as scans_router
 
 
@@ -351,6 +351,68 @@ async def test_dashboard_is_scoped_to_owner(api_settings, monkeypatch):
             assert other["severity"]["medium"] == 0
             assert other["recent_scans"] == []
             assert other["targets"] == []
+
+
+@pytest.mark.asyncio
+async def test_check_results_are_scoped_to_owner(api_settings, monkeypatch):
+    monkeypatch.setattr(scans_router, "dispatch", lambda scan_id: None)
+    app = create_app(api_settings)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with (
+            httpx.AsyncClient(transport=transport, base_url="http://testserver") as first,
+            httpx.AsyncClient(transport=transport, base_url="http://testserver") as second,
+        ):
+            await register(first, "checks@example.com")
+            created = await post(
+                first, "/api/targets", {"name": "Checked", "url": "https://checked.example.com"}
+            )
+            target_id = created.json()["id"]
+            attested = await post(
+                first,
+                f"/api/targets/{target_id}/verify/attest",
+                {"accepted": True, "attestation": "I own this host and authorize the assessment."},
+            )
+            assert attested.status_code == 200, attested.text
+            scan = await post(first, "/api/scans", {"target_id": target_id, "profile": "safe"})
+            assert scan.status_code == 201, scan.text
+            scan_id = scan.json()["id"]
+
+            factory = session_factory()
+            with factory() as db:
+                db.add(
+                    CheckResult(
+                        scan_id=scan_id,
+                        check_id="venom.headers.missing",
+                        name="Security headers",
+                        status="completed",
+                        findings=2,
+                        duration_ms=120,
+                    )
+                )
+                db.add(
+                    CheckResult(
+                        scan_id=scan_id,
+                        check_id="venom.secrets.js",
+                        name="JS secrets",
+                        status="skipped",
+                        error="disabled",
+                    )
+                )
+                db.commit()
+
+            response = await first.get(f"/api/scans/{scan_id}/check_results")
+            assert response.status_code == 200, response.text
+            rows = {row["check_id"]: row for row in response.json()}
+            assert set(rows) == {"venom.headers.missing", "venom.secrets.js"}
+            assert rows["venom.headers.missing"]["status"] == "completed"
+            assert rows["venom.headers.missing"]["findings"] == 2
+            assert rows["venom.headers.missing"]["duration_ms"] == 120
+            assert rows["venom.secrets.js"]["status"] == "skipped"
+            assert rows["venom.secrets.js"]["error"] == "disabled"
+
+            await register(second, "nosy@example.com")
+            assert (await second.get(f"/api/scans/{scan_id}/check_results")).status_code == 404
 
 
 @pytest.mark.asyncio

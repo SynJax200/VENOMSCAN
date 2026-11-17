@@ -15,7 +15,7 @@ from venomscan_engine.oob import OobListener
 from venomscan_api.config import get_settings
 from venomscan_api.crypto import decrypt
 from venomscan_api.db import session_factory, utcnow
-from venomscan_api.models import Endpoint, Finding, Scan, Technology, TestCredential
+from venomscan_api.models import CheckResult, Endpoint, Finding, Scan, Technology, TestCredential
 from venomscan_api.models import ScanEvent as ScanEventRow
 
 _oob_listener: OobListener | None = None
@@ -100,6 +100,39 @@ class DbEventSink:
     def __init__(self, scan_id: str) -> None:
         self.scan_id = scan_id
 
+    def _record_check(self, db, event: ScanEvent) -> None:
+        payload = event.payload or {}
+        check_id = payload.get("check_id")
+        if not check_id or not isinstance(check_id, str):
+            return
+        row = db.scalar(
+            select(CheckResult).where(
+                CheckResult.scan_id == self.scan_id, CheckResult.check_id == check_id
+            )
+        )
+        if row is None:
+            row = CheckResult(scan_id=self.scan_id, check_id=check_id)
+            db.add(row)
+        name = payload.get("name")
+        if isinstance(name, str) and name:
+            row.name = name[:200]
+        elif not row.name:
+            row.name = event.message[:200]
+        if event.type in {"check_started", "plugin_started"}:
+            row.status = "running"
+        elif event.type in {"check_finished", "plugin_finished"}:
+            row.status = "completed"
+            row.findings = int(payload.get("findings") or 0)
+            row.duration_ms = int(payload.get("duration_ms") or 0)
+        elif event.type in {"check_failed", "plugin_failed"}:
+            row.status = "failed"
+            row.error = str(payload.get("error") or event.message)[:500]
+            if payload.get("duration_ms") is not None:
+                row.duration_ms = int(payload["duration_ms"])
+        elif event.type == "check_skipped":
+            row.status = "skipped"
+            row.error = str(payload.get("reason") or "skipped")[:200]
+
     async def emit(self, event: ScanEvent) -> None:
         with session_factory()() as db:
             scan = db.get(Scan, self.scan_id)
@@ -117,6 +150,7 @@ class DbEventSink:
                     payload=event.payload,
                 )
             )
+            self._record_check(db, event)
             scan.status = "running"
             scan.phase = event.phase
             scan.progress = max(scan.progress, event.progress)
@@ -152,6 +186,13 @@ def _finish(scan_id: str, status: str, *, error: str = "") -> None:
         scan.status = status
         scan.finished_at = utcnow()
         scan.error = error[:2000]
+        for row in db.scalars(
+            select(CheckResult).where(
+                CheckResult.scan_id == scan_id, CheckResult.status == "running"
+            )
+        ):
+            row.status = "cancelled" if status == "cancelled" else "failed"
+            row.error = row.error or error[:300]
         db.commit()
 
 

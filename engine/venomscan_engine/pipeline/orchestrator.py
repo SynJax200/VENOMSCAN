@@ -426,6 +426,8 @@ async def run_scan(
         )
 
         classes = checks_for_profile(profile, disabled_checks)
+        enabled_ids = {cls.id for cls in classes}
+        skipped = [cls for cls in checks_for_profile(profile) if cls.id not in enabled_ids]
         await ctx.emit(
             "analyzing",
             "phase_started",
@@ -434,8 +436,17 @@ async def run_scan(
             payload={
                 "checks": [c.id for c in classes],
                 "plugins": [spec.check_id for spec in plugin_specs],
+                "skipped": sorted(cls.id for cls in skipped),
             },
         )
+        for cls in skipped:
+            await ctx.emit(
+                "analyzing",
+                "check_skipped",
+                f"{cls.name} skipped: disabled in settings",
+                progress=62,
+                payload={"check_id": cls.id, "name": cls.name, "reason": "disabled"},
+            )
         for problem in plugin_problems:
             await ctx.emit("analyzing", "warning", f"Plugin ignored: {problem}", progress=62)
         span = 23
@@ -450,8 +461,9 @@ async def run_scan(
                 "check_started",
                 check.name,
                 progress=progress,
-                payload={"check_id": check.id},
+                payload={"check_id": check.id, "name": check.name},
             )
+            started_at = time.monotonic()
             try:
                 produced = await check.run(ctx)
             except ScanCancelled:
@@ -464,6 +476,13 @@ async def run_scan(
                     await ctx.emit(
                         "analyzing", "warning", "Request budget reached", progress=progress
                     )
+                await ctx.emit(
+                    "analyzing",
+                    "check_skipped",
+                    f"{check.name} skipped: request budget reached",
+                    progress=progress,
+                    payload={"check_id": check.id, "name": check.name, "reason": "request_budget"},
+                )
                 continue
             except Exception as exc:
                 await ctx.emit(
@@ -471,7 +490,12 @@ async def run_scan(
                     "check_failed",
                     f"{check.name} failed: {exc}",
                     progress=progress,
-                    payload={"check_id": check.id, "error": str(exc)[:300]},
+                    payload={
+                        "check_id": check.id,
+                        "name": check.name,
+                        "error": str(exc)[:300],
+                        "duration_ms": int((time.monotonic() - started_at) * 1000),
+                    },
                 )
                 continue
             for finding in produced:
@@ -495,6 +519,18 @@ async def run_scan(
                         ],
                     },
                 )
+            await ctx.emit(
+                "analyzing",
+                "check_finished",
+                f"{check.name}: {len(produced)} finding(s)",
+                progress=progress,
+                payload={
+                    "check_id": check.id,
+                    "name": check.name,
+                    "findings": len(produced),
+                    "duration_ms": int((time.monotonic() - started_at) * 1000),
+                },
+            )
         if nuclei is not None and ctx.remaining_seconds > 8:
             await ctx.emit(
                 "analyzing",
@@ -542,8 +578,13 @@ async def run_scan(
                 "plugin_started",
                 f"Isolated plugin: {spec.name}",
                 progress=85,
-                payload={"check_id": spec.check_id, "timeout": spec.timeout_seconds},
+                payload={
+                    "check_id": spec.check_id,
+                    "name": spec.name,
+                    "timeout": spec.timeout_seconds,
+                },
             )
+            plugin_started_at = time.monotonic()
             try:
                 produced = await run_plugin(spec, plugin_payload(ctx), scope)
             except PluginError as exc:
@@ -552,7 +593,12 @@ async def run_scan(
                     "plugin_failed",
                     str(exc)[:300],
                     progress=85,
-                    payload={"check_id": spec.check_id},
+                    payload={
+                        "check_id": spec.check_id,
+                        "name": spec.name,
+                        "error": str(exc)[:300],
+                        "duration_ms": int((time.monotonic() - plugin_started_at) * 1000),
+                    },
                 )
                 continue
             for finding in produced:
@@ -563,7 +609,12 @@ async def run_scan(
                 "plugin_finished",
                 f"{spec.name}: {len(produced)} finding(s)",
                 progress=85,
-                payload={"check_id": spec.check_id, "findings": len(produced)},
+                payload={
+                    "check_id": spec.check_id,
+                    "name": spec.name,
+                    "findings": len(produced),
+                    "duration_ms": int((time.monotonic() - plugin_started_at) * 1000),
+                },
             )
         ctx.artifacts["plugins"] = {
             "loaded": len(plugin_specs),

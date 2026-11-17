@@ -126,6 +126,15 @@ class ScanEventOut(BaseModel):
     created_at: datetime
 
 
+class CheckResultOut(BaseModel):
+    check_id: str
+    name: str
+    status: str
+    findings: int
+    duration_ms: int
+    error: str
+
+
 class ScanOut(BaseModel):
     id: str
     target_id: str
