@@ -1,3 +1,4 @@
+from venomscan_engine.reports.cvss import base_score, cvss_for
 from venomscan_engine.reports.model import (
     ReportAi,
     ReportAuthorization,
@@ -29,6 +30,8 @@ __all__ = [
     "ReportScan",
     "ReportTechnology",
     "canonical_json",
+    "base_score",
+    "cvss_for",
     "render_html",
     "render_json",
     "render_markdown",

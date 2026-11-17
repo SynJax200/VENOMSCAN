@@ -18,6 +18,7 @@ from venomscan_engine.reports import (
     ReportScan,
     ReportTechnology,
     canonical_json,
+    cvss_for,
     render_html,
     render_markdown,
     render_pdf,
@@ -116,6 +117,12 @@ def build_model(db: Session, scan: Scan, user: User) -> ReportModel:
         response_evidence = dict(finding.response_evidence or {})
         if reason:
             response_evidence.setdefault("verification_reason", reason)
+        cvss_vector = finding.cvss_vector
+        cvss_score = finding.cvss_score
+        if cvss_score is None:
+            reference = cvss_for(finding.check_id)
+            if reference is not None:
+                cvss_vector, cvss_score = reference
         finding_model = ReportFinding(
             id=finding.id,
             check_id=finding.check_id,
@@ -135,8 +142,8 @@ def build_model(db: Session, scan: Scan, user: User) -> ReportModel:
             references=finding.references or [],
             cwe=finding.cwe or [],
             owasp=finding.owasp or [],
-            cvss_score=finding.cvss_score,
-            cvss_vector=finding.cvss_vector,
+            cvss_score=cvss_score,
+            cvss_vector=cvss_vector,
             request_evidence=finding.request_evidence or {},
             response_evidence=response_evidence,
             ai_summary=finding.ai_summary or "",

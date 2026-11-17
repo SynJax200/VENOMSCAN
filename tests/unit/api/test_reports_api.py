@@ -171,6 +171,8 @@ async def test_reports_include_evidence_grounded_reproduction_steps(client):
     assert any("curl -sS -D - -o /dev/null" in step for step in steps)
     assert any(TARGET_URL in step for step in steps)
     assert any("Content-Security-Policy" in step for step in steps)
+    assert payload["findings"][0]["cvss_vector"].startswith("CVSS:3.1/")
+    assert payload["findings"][0]["cvss_score"] > 0
 
     markdown = (
         await _post(client, f"/api/scans/{scan_id}/reports", {"format": "markdown"})
