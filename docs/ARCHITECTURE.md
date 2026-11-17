@@ -1,6 +1,6 @@
 # VENOMSCAN — System Architecture
 
-**Brand:** Cyber Mind Space
+**Brand:** S&S Researcher
 **Product:** VENOMSCAN — AI-assisted web application security assessment platform
 **Document status:** Draft for review (no implementation yet)
 

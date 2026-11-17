@@ -8,7 +8,7 @@ infra, fixtures, and tests.
 venomscan/
 ├─ README.md
 ├─ NOTICE.md                        # adapted MIT sources + attribution
-├─ LICENSE                          # proprietary — Cyber Mind Space
+├─ LICENSE                          # proprietary — S&S Researcher
 ├─ .editorconfig
 ├─ .gitignore
 ├─ .env.example                     # documented, no real secrets

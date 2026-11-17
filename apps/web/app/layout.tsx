@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: { default: "VENOMSCAN", template: "%s · VENOMSCAN" },
   description:
-    "AI-assisted web application security assessments for authorized targets, by Cyber Mind Space.",
+    "AI-assisted web application security assessments for authorized targets, by S&S Researcher.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

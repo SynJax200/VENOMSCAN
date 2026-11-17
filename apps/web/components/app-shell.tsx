@@ -63,26 +63,22 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex min-w-0 items-center gap-2">
       <Image
         src="/brand/venomscan-logo-256.png"
-        alt="VENOMSCAN emblem"
-        width={36}
-        height={36}
+        alt="S&S Researcher emblem"
+        width={256}
+        height={174}
         priority
-        className="h-9 w-9 shrink-0 select-none drop-shadow-[0_0_12px_rgba(47,180,224,0.28)]"
+        className="h-8 w-auto shrink-0 select-none drop-shadow-[0_0_12px_rgba(47,180,224,0.28)]"
       />
       {!compact ? (
-        <div className="leading-tight">
-          <Image
-            src="/brand/venomscan-wordmark.png"
-            alt="VENOMSCAN"
-            width={885}
-            height={177}
-            className="h-[21px] w-auto select-none"
-          />
-          <p className="mt-1 text-[9.5px] font-medium uppercase tracking-[0.16em] text-slate-400">
-            Cyber Mind Space
+        <div className="min-w-0 leading-tight">
+          <span className="wordmark-metal block text-[19px] font-semibold leading-none tracking-[0.14em]">
+            VENOMSCAN
+          </span>
+          <p className="brand-company mt-1 text-[9px] font-semibold tracking-[0.14em]">
+            S&amp;S Researcher
           </p>
         </div>
       ) : null}

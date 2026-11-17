@@ -203,6 +203,30 @@ body {
     animation: gradient-pan 9s ease-in-out infinite;
   }
 
+  .wordmark-metal {
+    background: linear-gradient(
+      180deg,
+      #fdfefe 0%,
+      #dfe9f1 26%,
+      #9fb3c4 46%,
+      #5d7285 54%,
+      #eaf2f8 72%,
+      #93a8b9 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 14px rgba(47, 180, 224, 0.28));
+  }
+
+  .brand-company {
+    background: linear-gradient(180deg, #f2f8fd 0%, #b9cddd 55%, #6f93ab 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+  }
+
   .brand-pulse {
     animation: brand-breathe 3.6s ease-in-out infinite;
   }

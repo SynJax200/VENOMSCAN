@@ -1,7 +1,7 @@
 [project]
 name = "venomscan"
 version = "0.1.0"
-description = "VENOMSCAN — AI-assisted web security assessment platform (Cyber Mind Space)"
+description = "VENOMSCAN — AI-assisted web security assessment platform (S&S Researcher)"
 requires-python = ">=3.12"
 dependencies = []
 

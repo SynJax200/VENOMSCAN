@@ -72,23 +72,18 @@ export default function LoginPage() {
         <div className="relative flex items-center gap-3">
           <Image
             src="/brand/venomscan-logo-512.png"
-            alt="VENOMSCAN emblem"
-            width={52}
-            height={52}
+            alt="S&S Researcher emblem"
+            width={512}
+            height={348}
             priority
-            className="h-[52px] w-[52px] select-none drop-shadow-[0_0_22px_rgba(47,180,224,0.32)]"
+            className="h-[52px] w-auto select-none drop-shadow-[0_0_22px_rgba(47,180,224,0.32)]"
           />
           <div className="leading-tight">
-            <Image
-              src="/brand/venomscan-wordmark.png"
-              alt="VENOMSCAN"
-              width={885}
-              height={177}
-              priority
-              className="h-[27px] w-auto select-none"
-            />
-            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-400">
-              Cyber Mind Space
+            <span className="wordmark-metal block text-[27px] font-semibold leading-none tracking-[0.18em]">
+              VENOMSCAN
+            </span>
+            <p className="brand-company mt-1 text-[10px] font-semibold tracking-[0.16em]">
+              S&amp;S Researcher
             </p>
           </div>
         </div>
@@ -98,14 +93,9 @@ export default function LoginPage() {
             A calmer tomorrow
           </p>
           <h1 className="mt-5">
-            <Image
-              src="/brand/venomscan-wordmark.png"
-              alt="VENOMSCAN"
-              width={885}
-              height={177}
-              priority
-              className="h-auto w-full max-w-[440px] select-none drop-shadow-[0_0_34px_rgba(47,180,224,0.22)]"
-            />
+            <span className="wordmark-metal block text-5xl font-semibold leading-none tracking-[0.14em] sm:text-6xl">
+              VENOMSCAN
+            </span>
           </h1>
           <p className="mt-6 text-[12px] font-semibold uppercase tracking-[0.28em] text-slate-400">
             Where security meets intelligence

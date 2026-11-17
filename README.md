@@ -1,6 +1,6 @@
 # VENOMSCAN
 
-AI-assisted web security assessment platform for authorized testing 
+AI-assisted web security assessment platform for authorized testing — built for S&S Researcher.
 
 VENOMSCAN combines reconnaissance, attack-surface discovery, passive and controlled active
 checks, evidence-based verification, AI explanation and reporting. The scanning engine is a
