@@ -7,8 +7,10 @@ import httpx
 import pytest
 import pytest_asyncio
 from venomscan_api.config import Settings
+from venomscan_api.db import session_factory
 from venomscan_api.deps import client_ip
 from venomscan_api.main import create_app
+from venomscan_api.models import Finding
 from venomscan_api.routers import scans as scans_router
 
 
@@ -290,6 +292,65 @@ async def test_tenancy_isolation(api_settings, monkeypatch):
             assert (await second.get("/api/targets")).json() == []
             hijack = await post(second, "/api/scans", {"target_id": target_id, "profile": "safe"})
             assert hijack.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_dashboard_is_scoped_to_owner(api_settings, monkeypatch):
+    monkeypatch.setattr(scans_router, "dispatch", lambda scan_id: None)
+    app = create_app(api_settings)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with (
+            httpx.AsyncClient(transport=transport, base_url="http://testserver") as first,
+            httpx.AsyncClient(transport=transport, base_url="http://testserver") as second,
+        ):
+            await register(first, "owner@example.com")
+            created = await post(
+                first, "/api/targets", {"name": "Owned", "url": "https://owned.example.com"}
+            )
+            target_id = created.json()["id"]
+            attested = await post(
+                first,
+                f"/api/targets/{target_id}/verify/attest",
+                {"accepted": True, "attestation": "I own this host and authorize the assessment."},
+            )
+            assert attested.status_code == 200, attested.text
+            scan = await post(first, "/api/scans", {"target_id": target_id, "profile": "safe"})
+            assert scan.status_code == 201, scan.text
+            scan_id = scan.json()["id"]
+
+            factory = session_factory()
+            with factory() as db:
+                db.add(
+                    Finding(
+                        scan_id=scan_id,
+                        dedup_key="dashboard-owner-test",
+                        check_id="venom.headers.csp",
+                        title="Missing CSP",
+                        category="headers",
+                        severity="medium",
+                        url="https://owned.example.com/",
+                        description="No Content-Security-Policy header.",
+                        impact="Injected script execution is not mitigated.",
+                        remediation="Send a restrictive Content-Security-Policy header.",
+                    )
+                )
+                db.commit()
+
+            own = (await first.get("/api/dashboard")).json()
+            assert own["total_scans"] == 1
+            assert own["total_findings"] == 1
+            assert own["severity"]["medium"] == 1
+            assert [item["id"] for item in own["targets"]] == [target_id]
+            assert [item["id"] for item in own["recent_scans"]] == [scan_id]
+
+            await register(second, "intruder@example.com")
+            other = (await second.get("/api/dashboard")).json()
+            assert other["total_scans"] == 0
+            assert other["total_findings"] == 0
+            assert other["severity"]["medium"] == 0
+            assert other["recent_scans"] == []
+            assert other["targets"] == []
 
 
 @pytest.mark.asyncio
