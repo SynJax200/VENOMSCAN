@@ -1,6 +1,6 @@
 # VENOMSCAN
 
-AI-assisted web security assessment platform for authorized testing — built for Cyber Mind Space.
+AI-assisted web security assessment platform for authorized testing 
 
 VENOMSCAN combines reconnaissance, attack-surface discovery, passive and controlled active
 checks, evidence-based verification, AI explanation and reporting. The scanning engine is a
