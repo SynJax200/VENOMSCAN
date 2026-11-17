@@ -29,6 +29,7 @@ class ReportFinding(BaseModel):
     cvss_vector: str | None = None
     request_evidence: dict[str, Any] = Field(default_factory=dict)
     response_evidence: dict[str, Any] = Field(default_factory=dict)
+    reproduction: list[str] = Field(default_factory=list)
     ai_summary: str = ""
 
 

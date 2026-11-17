@@ -21,6 +21,7 @@ from venomscan_engine.reports import (
     render_html,
     render_markdown,
     render_pdf,
+    reproduction_steps,
 )
 from venomscan_engine.reports.renderers import file_extension
 
@@ -115,33 +116,33 @@ def build_model(db: Session, scan: Scan, user: User) -> ReportModel:
         response_evidence = dict(finding.response_evidence or {})
         if reason:
             response_evidence.setdefault("verification_reason", reason)
-        findings.append(
-            ReportFinding(
-                id=finding.id,
-                check_id=finding.check_id,
-                title=finding.title,
-                category=finding.category,
-                severity=finding.severity,
-                verification_status=status,
-                confidence=finding.confidence,
-                risk_score=finding.risk_score,
-                url=finding.url,
-                method=finding.method,
-                parameter=finding.parameter,
-                payload=finding.payload,
-                description=finding.description,
-                impact=finding.impact,
-                remediation=finding.remediation,
-                references=finding.references or [],
-                cwe=finding.cwe or [],
-                owasp=finding.owasp or [],
-                cvss_score=finding.cvss_score,
-                cvss_vector=finding.cvss_vector,
-                request_evidence=finding.request_evidence or {},
-                response_evidence=response_evidence,
-                ai_summary=finding.ai_summary or "",
-            )
+        finding_model = ReportFinding(
+            id=finding.id,
+            check_id=finding.check_id,
+            title=finding.title,
+            category=finding.category,
+            severity=finding.severity,
+            verification_status=status,
+            confidence=finding.confidence,
+            risk_score=finding.risk_score,
+            url=finding.url,
+            method=finding.method,
+            parameter=finding.parameter,
+            payload=finding.payload,
+            description=finding.description,
+            impact=finding.impact,
+            remediation=finding.remediation,
+            references=finding.references or [],
+            cwe=finding.cwe or [],
+            owasp=finding.owasp or [],
+            cvss_score=finding.cvss_score,
+            cvss_vector=finding.cvss_vector,
+            request_evidence=finding.request_evidence or {},
+            response_evidence=response_evidence,
+            ai_summary=finding.ai_summary or "",
         )
+        finding_model.reproduction = reproduction_steps(finding_model)
+        findings.append(finding_model)
     return ReportModel(
         generated_at=_iso(utcnow()) or "",
         scan=ReportScan(

@@ -88,6 +88,27 @@ def test_render_markdown_contains_all_findings() -> None:
     assert "AI intelligence" in text
 
 
+def test_render_surfaces_per_finding_reproduction_steps() -> None:
+    model = _model()
+    model.findings[0].reproduction = [
+        "curl -sS -D - -o /dev/null 'https://demo.example.test/'",
+        "Confirm Content-Security-Policy is absent <and> no allowlist applies.",
+    ]
+
+    text = render_markdown(model).decode()
+    assert "**Reproduction (authorized target only).**" in text
+    assert "1. curl -sS -D - -o /dev/null 'https://demo.example.test/'" in text
+    assert "2. Confirm Content-Security-Policy is absent" in text
+
+    page = render_html(model)
+    assert "<h4>Reproduction (authorized target only)</h4>" in page
+    assert "<li>curl -sS -D - -o /dev/null &#x27;https://demo.example.test/&#x27;</li>" in page
+    assert "&lt;and&gt;" in page
+
+    payload = json.loads(render_json(model))
+    assert payload["findings"][0]["reproduction"] == model.findings[0].reproduction
+
+
 def test_report_ai_section_carries_citations_and_raw_recon_appendix() -> None:
     model = _model()
     model.ai_analyses[0].citations = ["scan:scan-1", "finding:f1"]

@@ -16,6 +16,7 @@ from venomscan_engine.reports.renderers import (
     render_markdown,
     render_pdf,
 )
+from venomscan_engine.reports.reproduction import reproduction_steps
 
 __all__ = [
     "FORMATS",
@@ -32,4 +33,5 @@ __all__ = [
     "render_json",
     "render_markdown",
     "render_pdf",
+    "reproduction_steps",
 ]

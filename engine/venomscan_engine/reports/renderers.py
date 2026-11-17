@@ -1026,6 +1026,13 @@ def render_markdown(model: ReportModel) -> bytes:
             f"**Remediation.** {finding.remediation}",
             "",
         ]
+        if finding.reproduction:
+            lines += ["**Reproduction (authorized target only).**", ""]
+            lines += [
+                f"{step_index}. {step}"
+                for step_index, step in enumerate(finding.reproduction, start=1)
+            ]
+            lines.append("")
         if finding.ai_summary:
             lines += [f"**AI analyst note.** {finding.ai_summary}", ""]
         if finding.references:
@@ -1139,6 +1146,13 @@ def render_html(model: ReportModel, integrity: str = "") -> str:
             if finding.ai_summary
             else ""
         )
+        reproduction_block = (
+            '<h4>Reproduction (authorized target only)</h4><ol>'
+            + "".join(f"<li>{esc(step)}</li>" for step in finding.reproduction)
+            + "</ol>"
+            if finding.reproduction
+            else ""
+        )
         finding_blocks.append(
             f'<article class="finding">'
             f'<header><span class="badge sev-{esc(finding.severity)}">{esc(finding.severity)}</span>'
@@ -1149,6 +1163,7 @@ def render_html(model: ReportModel, integrity: str = "") -> str:
             f"<h4>Description</h4><p>{esc(finding.description)}</p>"
             f"<h4>Impact</h4><p>{esc(finding.impact)}</p>"
             f"<h4>Remediation</h4><p>{esc(finding.remediation)}</p>"
+            f"{reproduction_block}"
             f"{ai_block}"
             + (f"<h4>Weakness</h4><p>{tags}</p>" if tags else "")
             + (f"<h4>References</h4><ul>{refs}</ul>" if refs else "")

@@ -160,6 +160,30 @@ async def test_report_creation_autofills_ai_section(client):
 
 
 @pytest.mark.asyncio
+async def test_reports_include_evidence_grounded_reproduction_steps(client):
+    scan_id = await _setup(client)
+    created = (
+        await _post(client, f"/api/scans/{scan_id}/reports", {"format": "json"})
+    ).json()
+    payload = (await client.get(created["download_url"])).json()
+    steps = payload["findings"][0]["reproduction"]
+    assert len(steps) >= 2
+    assert any("curl -sS -D - -o /dev/null" in step for step in steps)
+    assert any(TARGET_URL in step for step in steps)
+    assert any("Content-Security-Policy" in step for step in steps)
+
+    markdown = (
+        await _post(client, f"/api/scans/{scan_id}/reports", {"format": "markdown"})
+    ).json()
+    text = (await client.get(markdown["download_url"])).text
+    assert "**Reproduction (authorized target only).**" in text
+
+    html = (await _post(client, f"/api/scans/{scan_id}/reports", {"format": "html"})).json()
+    page = (await client.get(html["download_url"])).text
+    assert "<h4>Reproduction (authorized target only)</h4>" in page
+
+
+@pytest.mark.asyncio
 async def test_download_and_preview(client):
     scan_id = await _setup(client)
     created = (
