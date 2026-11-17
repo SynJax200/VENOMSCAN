@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from urllib.parse import urlsplit
 
+from venomscan_engine.browser import chromium_launch_kwargs
 from venomscan_engine.checks.probes import canary, probe_points, with_value
 from venomscan_engine.checks.registry import register
 from venomscan_engine.context import ScanContext
@@ -67,7 +68,7 @@ class DomXssCheck:
         try:
             async with async_playwright() as playwright:
                 try:
-                    browser = await playwright.chromium.launch(headless=True)
+                    browser = await playwright.chromium.launch(**chromium_launch_kwargs())
                 except Exception as exc:
                     await ctx.emit(
                         "analyzing",

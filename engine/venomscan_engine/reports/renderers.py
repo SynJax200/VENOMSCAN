@@ -7,6 +7,7 @@ import re
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
+from venomscan_engine.browser import chromium_launch_kwargs
 from venomscan_engine.intel.endpoints import template_path
 from venomscan_engine.models import endpoint_state
 from venomscan_engine.reports.model import ReportModel
@@ -1346,7 +1347,7 @@ def render_pdf(model: ReportModel, integrity: str = "") -> bytes:
     document = render_html(model, integrity)
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.chromium.launch(**chromium_launch_kwargs())
             try:
                 page = browser.new_page()
                 page.set_content(document, wait_until="load")

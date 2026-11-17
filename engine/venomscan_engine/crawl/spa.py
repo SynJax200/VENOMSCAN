@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from urllib.parse import parse_qsl, urlsplit
 
+from venomscan_engine.browser import chromium_launch_kwargs
 from venomscan_engine.context import ScanContext
 from venomscan_engine.crawl.crawler import is_static_asset
 from venomscan_engine.models import EndpointRecord
@@ -145,7 +146,7 @@ async def capture_spa(
     try:
         async with async_playwright() as playwright:
             try:
-                browser = await playwright.chromium.launch(headless=True)
+                browser = await playwright.chromium.launch(**chromium_launch_kwargs())
             except Exception as exc:
                 report.stopped = "browser-unavailable"
                 report.error = str(exc)[:200]
