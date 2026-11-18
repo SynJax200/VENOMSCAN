@@ -58,7 +58,7 @@ ACME_EMAIL=demo@example.com
 API_BASE=${URL}
 WEB_BASE=${URL}
 CORS_ORIGINS=${URL}
-SEED_TARGET_URL=${URL}
+SEED_TARGET_URL=http://api:8000/demo
 DEMO_ENABLED=false
 SECRET_KEY=$(random_hex 32)
 POSTGRES_USER=venom
@@ -117,21 +117,22 @@ install_nuclei() {
 }
 
 wait_for_web() {
+  # "/" redirects to the login page, so any 2xx/3xx answer means Next is serving.
   for _ in $(seq 1 60); do
     code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:${PAGE_PORT}/" || true)
-    [[ "$code" == "200" ]] && return 0
+    [[ "$code" =~ ^[23] ]] && return 0
     sleep 5
   done
   "${COMPOSE[@]}" ps || true
+  "${COMPOSE[@]}" logs --tail 40 web api || true
   die "web did not answer on port ${PAGE_PORT}; inspect: ${COMPOSE[*]} logs web api"
 }
 
 seed_demo() {
   grep -q '^SEED_DONE=1' "$ENV_FILE" && { say "demo data already seeded"; return; }
-  say "seeding demo account, verified target and self-scan (about a minute)"
-  if "${COMPOSE[@]}" exec -T \
-      -e VG_URL="$URL" -e VG_EMAIL="$DEMO_EMAIL" -e VG_PASSWORD="$DEMO_PASSWORD" \
-      api .venv/bin/python - < scripts/codespace_seed.py; then
+  say "seeding demo account, verified target, self-scan and PDF/JSON reports (about two minutes)"
+  if "${COMPOSE[@]}" exec -T -e DEMO_PASSWORD="$DEMO_PASSWORD" \
+      api .venv/bin/python -m venomscan_api.seed; then
     printf 'SEED_DONE=1\n' >> "$ENV_FILE"
     sed -i 's/^ALLOW_REGISTRATION=.*/ALLOW_REGISTRATION=false/' "$ENV_FILE"
     say "closing public sign-up and restarting the API"
@@ -150,13 +151,14 @@ start() {
     || die "compose up kept failing; rerun the script (layer cache makes retries fast)"
   wait_for_web
   seed_demo
+  if grep -qE '^LLM_API_KEY=.+' "$ENV_FILE"; then ai_state=enabled; else ai_state="deterministic mode (set LLM_API_KEY)"; fi
   cat <<EOF
 
 ==> VENOMSCAN demo
     URL:      ${URL}
     Login:    ${DEMO_EMAIL}
-    Password: ${DEMO_PASSWORD}
-    AI:       $([[ -n "${LLM_API_KEY:-}" ]] && echo enabled || echo "deterministic mode (set LLM_API_KEY secret)")
+    Password: ${DEMO_PASSWORD} (an account registered earlier keeps its own password)
+    AI:       ${ai_state}
     Stop:     docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} -f ${OVERLAY} down
 
 EOF

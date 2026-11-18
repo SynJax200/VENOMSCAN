@@ -1,6 +1,20 @@
 # Codespaces overlay: expose the Next.js server on the forwarded port and
 # skip Caddy (GitHub terminates TLS for *.app.github.dev hostnames).
+# Demo mode runs the intentionally vulnerable /demo fixtures inside the API
+# container only, so the seed scan has a rich target; Next never proxies /demo.
 services:
+  api:
+    environment:
+      ENVIRONMENT: staging
+      DEMO_ENABLED: "true"
+      ALLOW_PRIVATE_TARGETS: "true"
+      SEED_TARGET_URL: http://api:8000/demo
+  worker:
+    environment:
+      ENVIRONMENT: staging
+      DEMO_ENABLED: "true"
+      ALLOW_PRIVATE_TARGETS: "true"
+      SEED_TARGET_URL: http://api:8000/demo
   web:
     ports:
       - "127.0.0.1:3000:3000"

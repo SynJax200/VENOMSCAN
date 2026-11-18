@@ -68,13 +68,13 @@ export function Brand({ compact = false }: { compact?: boolean }) {
         src="/brand/venomscan-logo-256.png"
         alt="S&S Researcher emblem"
         width={256}
-        height={174}
+        height={169}
         priority
-        className="h-8 w-auto shrink-0 select-none drop-shadow-[0_0_12px_rgba(47,180,224,0.28)]"
+        className="h-9 w-auto shrink-0 select-none drop-shadow-[0_0_12px_rgba(47,180,224,0.28)]"
       />
       {!compact ? (
         <div className="min-w-0 leading-tight">
-          <span className="wordmark-metal block whitespace-nowrap text-[18px] font-semibold leading-none tracking-[0.1em]">
+          <span className="wordmark-metal block whitespace-nowrap text-[17px] font-semibold leading-none tracking-[0.1em]">
             VENOMSCAN
           </span>
           <p className="brand-company mt-1 text-[9px] font-semibold tracking-[0.14em]">

@@ -12,7 +12,7 @@ name: venomscan
 # scans using the `active` profile, after explicit consent.
 
 x-backend-env: &backend-env
-  ENV: production
+  ENVIRONMENT: production
   SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in infra/compose/.env.prod}
   API_BASE: ${API_BASE:-https://localhost}
   SEED_TARGET_URL: ${SEED_TARGET_URL:-http://api:8000/demo}

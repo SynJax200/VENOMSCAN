@@ -89,7 +89,7 @@ Server-sent events are excluded from gzip at both layers and the Caddy route use
 
 ### Demo data (optional)
 
-The production compose stack sets `DEMO_ENABLED=false` and `ENV=production`, so `/demo`
+The production compose stack sets `DEMO_ENABLED=false` and `ENVIRONMENT=production`, so `/demo`
 returns 404 and the seed refuses to run. To exercise the intentionally vulnerable
 fixtures, use the development setup above instead. This creates `demo@venomscan.local`,
 a verified target and one safe scan. It only works when `ALLOW_PRIVATE_TARGETS=true` (a

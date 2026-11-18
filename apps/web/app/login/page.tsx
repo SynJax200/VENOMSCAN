@@ -74,7 +74,7 @@ export default function LoginPage() {
             src="/brand/venomscan-logo-512.png"
             alt="S&S Researcher emblem"
             width={512}
-            height={348}
+            height={338}
             priority
             className="h-[52px] w-auto select-none drop-shadow-[0_0_22px_rgba(47,180,224,0.32)]"
           />

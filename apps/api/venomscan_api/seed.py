@@ -5,13 +5,35 @@ import os
 from sqlalchemy import select
 
 from venomscan_api import security
-from venomscan_api.config import get_settings
+from venomscan_api.config import Settings, get_settings
 from venomscan_api.db import init_db, init_engine, session_factory, utcnow
-from venomscan_api.models import Authorization, Scan, Target, User
-from venomscan_api.services import verification
+from venomscan_api.models import Authorization, Report, Scan, Target, User
+from venomscan_api.services import reports, verification
 from venomscan_api.services.runner import execute_scan
 
 DEMO_EMAIL = "demo@venomscan.local"
+
+
+def ensure_reports(settings: Settings, target_id: str) -> None:
+    with session_factory()() as db:
+        scan = db.scalar(
+            select(Scan)
+            .where(Scan.target_id == target_id, Scan.status == "completed")
+            .order_by(Scan.created_at.desc())
+        )
+        if scan is None:
+            return
+        owner = scan.target.owner
+        for fmt in ("pdf", "json"):
+            if db.scalar(select(Report.id).where(Report.scan_id == scan.id, Report.format == fmt)):
+                continue
+            try:
+                reports.generate(db, scan, owner, fmt, settings)
+                db.commit()
+                print(f"generated {fmt.upper()} report for scan {scan.id}")
+            except Exception as exc:  # a render failure must not lose the seeded scan
+                db.rollback()
+                print(f"{fmt.upper()} report skipped: {exc}")
 
 
 def main() -> None:
@@ -40,6 +62,8 @@ def main() -> None:
             db.add(user)
             db.flush()
             print(f"created user {DEMO_EMAIL}")
+        elif not user.name:
+            user.name = "Demo Analyst"
 
         target = db.scalar(select(Target).where(Target.owner_id == user.id))
         if target is None:
@@ -49,7 +73,7 @@ def main() -> None:
                 name="VENOMSCAN self-check",
                 url=target_url,
                 host=verification.host_from_url(target_url),
-                scope_notes="Local demo fixture served by the VENOMSCAN API itself.",
+                scope_notes="Demo fixture served by the VENOMSCAN API itself.",
             )
             db.add(target)
             db.flush()
@@ -80,9 +104,11 @@ def main() -> None:
             db.add(scan)
         db.commit()
         scan_id = scan.id if scan else None
+        target_id = target.id
 
     if scan_id is None:
         print("seed complete; a scan already exists for the demo target")
+        ensure_reports(settings, target_id)
         return
     if not settings.allow_private_targets:
         print(
@@ -90,11 +116,12 @@ def main() -> None:
             "local API instance (loopback targets stay blocked otherwise)"
         )
         return
-    print(f"running demo scan {scan_id} against {settings.api_base}/demo")
+    print(f"running demo scan {scan_id} against {settings.seed_target_url or 'the API /demo fixtures'}")
     execute_scan(scan_id)
     with session_factory()() as db:
         scan = db.get(Scan, scan_id)
         print(f"seed scan finished with status {scan.status if scan else 'missing'}")
+    ensure_reports(settings, target_id)
 
 
 if __name__ == "__main__":
