@@ -4,6 +4,9 @@ VENOMSCAN is an original implementation. Reference projects were reviewed for co
 No source files were copied, and every listed item was checked against its licence before any
 idea was adopted.
 
+The repository itself is released under the MIT licence (see `LICENSE`). The notices below cover
+third-party material and must be kept when the MIT terms are exercised.
+
 ## Reviewed reference projects
 
 | Project        | Licence                          | What was used                                                              | Code copied |

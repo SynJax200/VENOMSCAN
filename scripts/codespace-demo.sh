@@ -105,8 +105,11 @@ EOF
 
 set_env() {
   local key=$1 value=$2
+  local escaped=${value//\\/\\\\}
+  escaped=${escaped//&/\\&}
+  escaped=${escaped//|/\\|}
   if grep -q "^${key}=" "$ENV_FILE"; then
-    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+    sed -i "s|^${key}=.*|${key}=${escaped}|" "$ENV_FILE"
   else
     printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
   fi
@@ -122,6 +125,12 @@ migrate_ai_env() {
   fi
   grep -q '^LLM_TIMEOUT=' "$ENV_FILE" || set_env LLM_TIMEOUT 120
   grep -q '^LLM_MAX_TOKENS=' "$ENV_FILE" || set_env LLM_MAX_TOKENS 4096
+  # An existing workspace keeps its old file, so a key exported for this run
+  # (or a Codespaces secret) would otherwise never reach the API container.
+  if [[ -n "${LLM_API_KEY:-}" ]] && ! grep -qxF "LLM_API_KEY=${LLM_API_KEY}" "$ENV_FILE"; then
+    set_env LLM_API_KEY "${LLM_API_KEY}"
+    warn "LLM_API_KEY from the environment was saved to ${ENV_FILE}"
+  fi
 }
 
 install_nuclei() {

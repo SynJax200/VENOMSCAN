@@ -41,7 +41,7 @@ listed in the "Live evidence ledger" at the end.
 | ID | Requirement | Implementation | Test / evidence | Status |
 |---|---|---|---|---|
 | A-1 | DNS enumeration | `recon/dns.py` | `test_dns.py` | MET |
-| A-2 | Subdomain discovery | `recon/osint.py` (crt.sh, certspotter, OTX passive DNS, hostsearch) | `test_osint.py`, recon proof on cybermindspace.com (6 names) | MET |
+| A-2 | Subdomain discovery | `recon/osint.py` (crt.sh, certspotter, OTX passive DNS, hostsearch) | `test_osint.py`, recon proof on `<authorized-target>` (6 names) | MET |
 | A-3 | WHOIS information | `recon/exposure.py` (IANA RDAP) | `test_exposure.py` | MET |
 | A-4 | IP intelligence | `recon/ip_intel.py` (Shodan InternetDB, optional Shodan/Censys keys, PTR sweep) | `test_ip_intel.py`, recon proof (ports 80/443, tags) | MET |
 | A-5 | Technology fingerprinting | `recon/tech.py` | `test_checks.py`, live Next.js/Vercel detection | MET |
@@ -296,8 +296,8 @@ so the two percentages are not comparable.
 
 | Date | Evidence |
 |---|---|
-| 2026-11-16 | Recon proof on cybermindspace.com (`recon-proof-2026-11-16.json`): 6 subdomains, Wayback/urlscan history, Shodan InternetDB ports/tags, SPF/DMARC |
-| 2026-11-16 | Client site scan report (`cybermindspace-scan-report.pdf`), signed PDF link |
+| 2026-11-16 | Recon proof on `<authorized-target>` (`recon-proof-2026-11-16.json`): 6 subdomains, Wayback/urlscan history, Shodan InternetDB ports/tags, SPF/DMARC |
+| 2026-11-16 | Client site scan report (`<authorized-target>-scan-report.pdf`), signed PDF link |
 | 2026-11-18 | Fresh PG 16 init (15 tables), Redis lockout 429 + Retry-After, Celery end-to-end scan |
 | 2026-11-18 | Per-check outcomes: 23 rows (22 completed + 1 skipped) + UI table, Playwright verified |
 | 2026-11-18 | Reproduction steps in 21-page PDF on a real scan (`d67e83c5`) |

@@ -434,7 +434,7 @@
 #project: false
 
 # set a specific project path
-#project-path: C:\Users\sanas\AppData\Local\Temp
+#project-path: /tmp/nuclei
 
 # stop processing http requests after the first match (may break template/workflow logic)
 #stop-at-first-match: false

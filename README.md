@@ -457,6 +457,8 @@ cd apps/web && npm run build
 
 ## Licence
 
-No open-source licence is granted yet. The source is published for evaluation and review;
-contact the repository owner before reusing it. Third-party components keep their own licences
-(see [NOTICE.md](NOTICE.md)).
+Released under the [MIT licence](LICENSE). Third-party components keep their own licences; the
+review notes live in [NOTICE.md](NOTICE.md).
+
+Running the software against a target does not grant permission to test that target — every scan
+still requires the operator to attest authorization (see [docs/SAFETY.md](docs/SAFETY.md)).

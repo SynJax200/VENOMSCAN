@@ -43,8 +43,8 @@ release/
 # Generated scan artifacts and client data (never commit to a public repo)
 backups/
 recon-proof-*.json
-*-scan-report*.pdf
-cybermindspace-*.pdf
+*.pdf
+client-*
 demo-report.pdf
 sir-scan-*.txt
 VENOMSCAN-capability-audit-*.pdf
