@@ -372,6 +372,15 @@ Celery scan completed with 9 findings, all four report formats generated (JSON h
 the stored digest), SSE streamed live events, an isolated plugin ran, and a backup → mutate →
 restore cycle preserved every report with its hash intact.
 
+## Free-tier demo (Render + Neon)
+
+No VPS? [`render.yaml`](render.yaml) deploys the API and web as two free Render Docker
+services backed by a free Neon Postgres: create a Neon project, open **New → Blueprint** on
+Render, paste the `DATABASE_URL`, and register the first account, which becomes the admin.
+Free instances sleep after 15 minutes idle and have 512 MB of RAM, so they suit demos and
+safe scans rather than production traffic. Step-by-step instructions, including the AI
+settings and post-deploy checks, are in [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
+
 ## Scan lifecycle
 
 ```
@@ -450,6 +459,7 @@ cd apps/web && npm run build
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) — STRIDE threat model for the platform
 - [docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md) — production deploy, TLS, backup/restore
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — step-by-step VPS/DNS/ACME runbook and post-deploy checklist
+- [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md) — free-tier Render + Neon deployment
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md) — targets, scans, reports, learning mode
 - [docs/PLUGIN_AUTHORING.md](docs/PLUGIN_AUTHORING.md) — writing isolated analysis plugins
 - [docs/ACCEPTANCE_MATRIX.md](docs/ACCEPTANCE_MATRIX.md) — client requirement matrix with per-row evidence

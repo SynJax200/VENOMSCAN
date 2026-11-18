@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
-const apiBase = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000";
+// Render blueprints hand the API's hostname over without a scheme, so accept both.
+const rawApiBase = process.env.API_INTERNAL_URL?.trim() || "http://127.0.0.1:8000";
+const apiBase = /^https?:\/\//.test(rawApiBase) ? rawApiBase : `https://${rawApiBase}`;
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",

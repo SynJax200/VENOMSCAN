@@ -23,6 +23,7 @@ venomscan/
 │  ├─ THREAT_MODEL.md               # STRIDE for the platform itself (phase 7)
 │  ├─ SAFETY.md                     # scope rules, profiles, authorization flow
 │  ├─ DEPLOYMENT.md                 # VPS/DNS/ACME runbook and post-deploy checklist
+│  ├─ DEPLOY_RENDER.md              # free-tier Render + Neon deployment guide
 │  ├─ OPERATOR_GUIDE.md             # install, TLS, backup/restore, troubleshooting
 │  ├─ USER_GUIDE.md                 # targets, scans, reports, learning mode
 │  ├─ PLUGIN_AUTHORING.md           # plugin contract and isolation model

@@ -1,3 +1,17 @@
+# Free-tier blueprint: API + web as two Render Docker services, Postgres on Neon.
+#
+# 1. Create a free Neon project and copy its connection string
+#    (it must end with ?sslmode=require).
+# 2. Render dashboard -> New -> Blueprint -> pick this repo.
+# 3. When prompted, paste DATABASE_URL — that is the only value to enter;
+#    every other URL is wired to the services Render just created.
+# 4. Open the web URL, register your account (the first one becomes admin),
+#    then set ALLOW_REGISTRATION=false on venomscan-api and redeploy.
+#
+# Neon is used instead of Render Postgres because free Render databases expire
+# after 30 days. Free services sleep after 15 minutes idle and cold-start in
+# about a minute; a PDF render on a heavy report can run out of the 512 MB.
+
 services:
   - type: web
     name: venomscan-api
@@ -7,24 +21,33 @@ services:
     dockerfilePath: ./infra/docker/Dockerfile.backend
     dockerContext: .
     healthCheckPath: /healthz
-    autoDeploy: true
+    autoDeployTrigger: commit
     envVars:
-      - key: ENV
+      - key: ENVIRONMENT
         value: production
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
         sync: false
       - key: API_BASE
-        sync: false
+        fromService:
+          name: venomscan-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: WEB_BASE
-        sync: false
+        fromService:
+          name: venomscan-web
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: CORS_ORIGINS
-        sync: false
+        fromService:
+          name: venomscan-web
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: COOKIE_SECURE
         value: "true"
       - key: ALLOW_REGISTRATION
-        value: "false"
+        value: "true"
       - key: DEMO_ENABLED
         value: "false"
       - key: LOGIN_STATE_BACKEND
@@ -61,3 +84,21 @@ services:
         value: "false"
       - key: REPORT_LINK_HOURS
         value: "24"
+
+  - type: web
+    name: venomscan-web
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./infra/docker/Dockerfile.web
+    dockerContext: .
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      # Server-side rewrite target for /api/*; Render passes this as a build arg
+      # and the Dockerfile bakes it into the standalone server.
+      - key: API_INTERNAL_URL
+        fromService:
+          type: web
+          name: venomscan-api
+          property: host
