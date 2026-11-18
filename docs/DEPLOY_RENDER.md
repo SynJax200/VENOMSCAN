@@ -77,7 +77,8 @@ The API image installs Playwright Chromium, so the first build takes roughly
 ## 3. First account and closing sign-up
 
 1. Open the web service URL (`https://<web-host>.onrender.com`). It redirects
-   to `/login`; use **Register**.
+   to `/login`; switch the form to **Create account** (registration shares the
+   `/login` page).
 2. The first registered account becomes the administrator — the blueprint
    starts with `ALLOW_REGISTRATION=true` for exactly this reason.
 3. In Render, open `venomscan-api` → **Environment** → set
