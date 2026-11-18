@@ -76,15 +76,17 @@ The API image installs Playwright Chromium, so the first build takes roughly
 
 ## 3. First account and closing sign-up
 
-1. Open the web service URL (`https://<web-host>.onrender.com`). It redirects
+The blueprint ships with registration **closed**, so a freshly deployed
+instance is never open to the internet. To create the first admin:
+
+1. In Render, open `venomscan-api` → **Environment** → set
+   `ALLOW_REGISTRATION` to `true` → **Save** (this redeploys the service).
+2. Open the web service URL (`https://<web-host>.onrender.com`). It redirects
    to `/login`; switch the form to **Create account** (registration shares the
-   `/login` page).
-2. The first registered account becomes the administrator — the blueprint
-   starts with `ALLOW_REGISTRATION=true` for exactly this reason.
-3. In Render, open `venomscan-api` → **Environment** → set
-   `ALLOW_REGISTRATION` to `false` → **Save** (this redeploys the service).
-   Later registrations now get `403 Registration is closed on this
-   installation`; existing accounts keep working.
+   `/login` page). The first registered account becomes the administrator.
+3. Set `ALLOW_REGISTRATION` back to `false` → **Save**. Later registrations
+   now get `403 Registration is closed on this installation`; existing
+   accounts keep working.
 
 Add the targets you own and complete the ownership check before the first scan.
 The authorization gate is enforced server-side; scanning anything you do not

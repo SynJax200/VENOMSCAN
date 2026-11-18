@@ -5,8 +5,8 @@
 # 2. Render dashboard -> New -> Blueprint -> pick this repo.
 # 3. When prompted, paste DATABASE_URL — that is the only value to enter;
 #    every other URL is wired to the services Render just created.
-# 4. Open the web URL, register your account (the first one becomes admin),
-#    then set ALLOW_REGISTRATION=false on venomscan-api and redeploy.
+# 4. Open the web URL, set ALLOW_REGISTRATION=true on venomscan-api, register
+#    your account (the first one becomes admin), then set it back to false.
 #
 # Neon is used instead of Render Postgres because free Render databases expire
 # after 30 days. Free services sleep after 15 minutes idle and cold-start in
@@ -47,7 +47,7 @@ services:
       - key: COOKIE_SECURE
         value: "true"
       - key: ALLOW_REGISTRATION
-        value: "true"
+        value: "false"
       - key: DEMO_ENABLED
         value: "false"
       - key: LOGIN_STATE_BACKEND
