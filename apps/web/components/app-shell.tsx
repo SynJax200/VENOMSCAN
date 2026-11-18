@@ -74,7 +74,7 @@ export function Brand({ compact = false }: { compact?: boolean }) {
       />
       {!compact ? (
         <div className="min-w-0 leading-tight">
-          <span className="wordmark-metal block text-[19px] font-semibold leading-none tracking-[0.14em]">
+          <span className="wordmark-metal block whitespace-nowrap text-[18px] font-semibold leading-none tracking-[0.1em]">
             VENOMSCAN
           </span>
           <p className="brand-company mt-1 text-[9px] font-semibold tracking-[0.14em]">
