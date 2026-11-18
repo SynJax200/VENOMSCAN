@@ -128,7 +128,7 @@ install_nuclei() {
   [[ -x .nuclei-bin/nuclei ]] && return
   say "downloading Nuclei ${NUCLEI_VERSION}"
   mkdir -p .nuclei-bin
-  curl -fsSL -o /tmp/venomscan-nuclei.zip \
+  curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/venomscan-nuclei.zip \
     "https://github.com/projectdiscovery/nuclei/releases/download/${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION#v}_linux_amd64.zip"
   if command -v unzip >/dev/null 2>&1; then
     unzip -oq /tmp/venomscan-nuclei.zip -d .nuclei-bin
