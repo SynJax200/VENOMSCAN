@@ -76,9 +76,11 @@ SCAN_SPA_ENABLED=true
 SCAN_DIRS_ENABLED=true
 OOB_ENABLED=false
 LLM_PROVIDER=openai_compat
-LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash}
+LLM_MODEL=${LLM_MODEL:-gemini-3-flash-preview}
 LLM_BASE_URL=${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
 LLM_API_KEY=${LLM_API_KEY:-}
+LLM_TIMEOUT=120
+LLM_MAX_TOKENS=4096
 AI_ALLOWED_HOSTS=generativelanguage.googleapis.com
 AI_CACHE_TTL_SECONDS=900
 AI_AUTO_TRIAGE=true
@@ -99,6 +101,27 @@ TRUSTED_PROXIES=
 EOF
   chmod 600 "$ENV_FILE"
   [[ -n "${LLM_API_KEY:-}" ]] || warn "LLM_API_KEY is not set; AI features stay in deterministic mode"
+}
+
+set_env() {
+  local key=$1 value=$2
+  if grep -q "^${key}=" "$ENV_FILE"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+  fi
+}
+
+migrate_ai_env() {
+  # Existing workspaces keep their old .env.prod: 2.5-flash now 404s for new API
+  # keys, and reasoning models need more output tokens than the old 30 s/900 cap.
+  [[ -f "$ENV_FILE" ]] || return
+  if grep -q '^LLM_MODEL=gemini-2.5-flash' "$ENV_FILE"; then
+    set_env LLM_MODEL gemini-3-flash-preview
+    warn "LLM_MODEL switched to gemini-3-flash-preview (gemini-2.5-flash is closed to new keys)"
+  fi
+  grep -q '^LLM_TIMEOUT=' "$ENV_FILE" || set_env LLM_TIMEOUT 120
+  grep -q '^LLM_MAX_TOKENS=' "$ENV_FILE" || set_env LLM_MAX_TOKENS 4096
 }
 
 install_nuclei() {
@@ -150,6 +173,7 @@ seed_demo() {
 start() {
   require_docker
   write_env
+  migrate_ai_env
   install_nuclei
   say "building api, worker and web (cached layers keep reruns quick)"
   retry 3 "${COMPOSE[@]}" build api worker web \
@@ -175,6 +199,7 @@ EOF
 prepare() {
   require_docker
   write_env
+  migrate_ai_env
   install_nuclei
   say "building images (first build takes roughly 10-15 minutes)"
   retry 3 "${COMPOSE[@]}" build api worker web \

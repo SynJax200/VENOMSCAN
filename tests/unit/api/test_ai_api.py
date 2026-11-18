@@ -201,6 +201,33 @@ async def test_provider_output_is_used_and_grounded(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_provider_gets_the_configured_output_budget(client, monkeypatch):
+    _, finding_id = await _setup(client)
+    from venomscan_api.config import get_settings
+    from venomscan_api.services import ai_service
+
+    seen: dict = {}
+
+    class BudgetProvider(FakeProvider):
+        async def complete(self, *, system, user, schema, max_tokens: int = 900):
+            seen["max_tokens"] = max_tokens
+            return schema.model_validate(self.payload)
+
+    fake = BudgetProvider(
+        {
+            "summary": f"The page at {CSP_URL} ships no CSP header.",
+            "why_it_matters": "Inline script execution becomes possible.",
+            "evidence_refs": [f"finding:{finding_id}"],
+        }
+    )
+    monkeypatch.setattr(ai_service, "provider_for", lambda db: fake)
+    response = await _post(client, f"/api/findings/{finding_id}/ai/explanation")
+    assert response.status_code == 200
+    assert seen["max_tokens"] == get_settings().llm_max_tokens
+    assert seen["max_tokens"] >= 4096
+
+
+@pytest.mark.asyncio
 async def test_invented_url_degrades_to_fallback(client, monkeypatch):
     _, finding_id = await _setup(client)
     from venomscan_api.services import ai_service

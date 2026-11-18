@@ -52,6 +52,12 @@ ENDPOINT_KINDS = {
 }
 
 
+# Reasoning models spend part of the output budget on hidden tokens, so a
+# 900-token cap truncates their JSON; keep the ceiling configurable.
+def _max_tokens() -> int:
+    return max(256, get_settings().llm_max_tokens)
+
+
 def _config(db: Session) -> tuple[str, str, str, str]:
     env = get_settings()
     row = db.get(AiSetting, "default")
@@ -294,6 +300,7 @@ async def run_finding(db: Session, finding: Finding, kind: str) -> AiAnalysis:
             allowed_urls=urls,
             allowed_cves=_finding_cves(finding),
             allowed_refs=finding_ctx["refs"],
+            max_tokens=_max_tokens(),
             provider_name=provider_name,
             model_name=model_name,
         )
@@ -350,6 +357,7 @@ async def run_check_education(db: Session, entry: dict[str, Any]) -> AiAnalysis:
             allowed_urls=(),
             allowed_cves=(),
             allowed_refs=refs,
+            max_tokens=_max_tokens(),
             provider_name=provider_name,
             model_name=model_name,
         )
@@ -449,6 +457,7 @@ async def run_scan(db: Session, scan: Scan, kind: str) -> AiAnalysis:
             allowed_urls=urls,
             allowed_cves=cves,
             allowed_refs=context["refs"],
+            max_tokens=_max_tokens(),
             provider_name=provider_name,
             model_name=model_name,
         )
@@ -540,6 +549,7 @@ async def triage_scan(db: Session, scan: Scan, *, limit: int = 40) -> AiAnalysis
             allowed_urls=(),
             allowed_cves=(),
             allowed_refs=context["refs"],
+            max_tokens=_max_tokens(),
             provider_name=provider_name,
             model_name=model_name,
         )
@@ -623,6 +633,7 @@ async def ask(db: Session, scan: Scan, question: str) -> AiAnalysis:
             allowed_hosts={scan.target.host if scan.target else ""},
             allowed_urls=urls,
             allowed_refs=context["refs"],
+            max_tokens=_max_tokens(),
             provider_name=provider_name,
             model_name=model_name,
         )
@@ -655,7 +666,7 @@ async def test_provider(db: Session) -> dict[str, Any]:
             system="You are a connectivity probe. Reply with the requested JSON only.",
             user='Return exactly {"ok": true, "note": "pong"} as a JSON object.',
             schema=ProbePayload,
-            max_tokens=40,
+            max_tokens=1024,
         )
         latency = int((time.perf_counter() - started) * 1000)
         ok = bool(getattr(payload, "ok", False))

@@ -32,7 +32,10 @@ standalone Python package with no dependency on the API or the web app.
 | 5 | AI intelligence engine | Done — recon-grounded prompts, three provider adapters with retries, grounding + output contracts, deterministic fallback, eight features, retrieval-scoped assistant, analysis reuse and provider self-test |
 | 6–7 | Reports, integrations, hardening, deployment | Done — four report formats with signed links + SHA-256, scan comparison, Nuclei/Burp import-export, offline tech→CVE intel, learning mode; STRIDE threat model, plugin subprocess isolation, perf tuning, prod compose + Caddy TLS, backup/restore, operator/user/plugin/SAFETY docs |
 
-`uv run python -m pytest tests/unit` currently runs 389 backend tests; `npm run build` is green.
+`uv run python -m pytest` currently runs 546 backend tests (engine, API and import-boundary
+suites, plus a gated browser E2E); `npm run build` is green. Every client-PDF requirement is
+tracked row-by-row with code and test evidence in [docs/ACCEPTANCE_MATRIX.md](docs/ACCEPTANCE_MATRIX.md)
+(147 met, 3 theme rows waived by the client, 0 open).
 The web UI uses the Jet Black / Cerulean Blue / Neon Rose theme with layered aurora
 gradients, a drifting grid, a scanline sweep, animated gradient headlines and page
 transitions; every animation is disabled under `prefers-reduced-motion`. The dashboard shows
@@ -449,4 +452,11 @@ cd apps/web && npm run build
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — step-by-step VPS/DNS/ACME runbook and post-deploy checklist
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md) — targets, scans, reports, learning mode
 - [docs/PLUGIN_AUTHORING.md](docs/PLUGIN_AUTHORING.md) — writing isolated analysis plugins
+- [docs/ACCEPTANCE_MATRIX.md](docs/ACCEPTANCE_MATRIX.md) — client requirement matrix with per-row evidence
 - [NOTICE.md](NOTICE.md) — third-party attribution and licence review notes
+
+## Licence
+
+No open-source licence is granted yet. The source is published for evaluation and review;
+contact the repository owner before reusing it. Third-party components keep their own licences
+(see [NOTICE.md](NOTICE.md)).

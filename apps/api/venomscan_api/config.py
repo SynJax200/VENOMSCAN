@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_timeout: float = 30.0
     llm_retries: int = 1
+    llm_max_tokens: int = 4096
     ai_allowed_hosts: str = "api.openai.com,api.anthropic.com"
     ai_cache_ttl_seconds: int = 900
     ai_auto_triage: bool = True
