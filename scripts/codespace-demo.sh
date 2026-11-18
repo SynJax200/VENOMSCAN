@@ -129,14 +129,19 @@ wait_for_web() {
 }
 
 seed_demo() {
-  grep -q '^SEED_DONE=1' "$ENV_FILE" && { say "demo data already seeded"; return; }
-  say "seeding demo account, verified target, self-scan and PDF/JSON reports (about two minutes)"
+  # The seed is idempotent: it skips the scan when one exists and only fills the
+  # gaps (missing target, attestation or PDF/JSON reports), so always run it.
+  say "seeding demo account, verified target, self-scan and PDF/JSON reports (about two minutes on the first run)"
   if "${COMPOSE[@]}" exec -T -e DEMO_PASSWORD="$DEMO_PASSWORD" \
       api .venv/bin/python -m venomscan_api.seed; then
-    printf 'SEED_DONE=1\n' >> "$ENV_FILE"
-    sed -i 's/^ALLOW_REGISTRATION=.*/ALLOW_REGISTRATION=false/' "$ENV_FILE"
-    say "closing public sign-up and restarting the API"
-    "${COMPOSE[@]}" up -d api
+    if ! grep -q '^SEED_DONE=1' "$ENV_FILE"; then
+      printf 'SEED_DONE=1\n' >> "$ENV_FILE"
+    fi
+    if grep -q '^ALLOW_REGISTRATION=true' "$ENV_FILE"; then
+      sed -i 's/^ALLOW_REGISTRATION=.*/ALLOW_REGISTRATION=false/' "$ENV_FILE"
+      say "closing public sign-up and restarting the API"
+      "${COMPOSE[@]}" up -d api
+    fi
   else
     warn "demo seeding failed; the UI still works, register manually to explore"
   fi
@@ -146,6 +151,9 @@ start() {
   require_docker
   write_env
   install_nuclei
+  say "building api, worker and web (cached layers keep reruns quick)"
+  retry 3 "${COMPOSE[@]}" build api worker web \
+    || die "image build kept failing; rerun the script to resume from cached layers"
   say "starting postgres, redis, api, worker and web"
   retry 3 "${COMPOSE[@]}" up -d --remove-orphans "${SERVICES[@]}" \
     || die "compose up kept failing; rerun the script (layer cache makes retries fast)"
