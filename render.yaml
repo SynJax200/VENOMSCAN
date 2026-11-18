@@ -95,10 +95,7 @@ services:
     healthCheckPath: /
     autoDeployTrigger: commit
     envVars:
-      # Server-side rewrite target for /api/*; Render passes this as a build arg
-      # and the Dockerfile bakes it into the standalone server.
+      # Render's fromService `host` is the private short name (`venomscan-api`),
+      # which Next cannot reach over TLS; use the public URL the build needs.
       - key: API_INTERNAL_URL
-        fromService:
-          type: web
-          name: venomscan-api
-          property: host
+        value: https://venomscan-api.onrender.com

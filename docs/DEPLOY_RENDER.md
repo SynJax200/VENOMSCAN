@@ -55,12 +55,13 @@ after a suspension reconnects automatically but adds a second or two.
    reads `render.yaml` and shows two services: `venomscan-api` and
    `venomscan-web`.
 3. It asks for one value — `DATABASE_URL`. Paste the Neon string from step 1.
-4. **Apply**. Render creates both services, starts the builds, and wires:
+4. **Apply**. Render creates both services and wires `API_BASE`, `WEB_BASE` and
+   `CORS_ORIGINS` on the API to the services' `RENDER_EXTERNAL_URL` values.
 
-   - `API_INTERNAL_URL` on the web service → the API's host, baked into the
-     Next.js standalone build as its `/api/*` rewrite target.
-   - `API_BASE`, `WEB_BASE` and `CORS_ORIGINS` on the API → the services'
-     `RENDER_EXTERNAL_URL` values.
+`API_INTERNAL_URL` on the web service is pinned in `render.yaml` to
+`https://venomscan-api.onrender.com` — the public URL, because Render's
+`fromService` host is the private short name (`venomscan-api`) that Next cannot
+reach over HTTPS. If you rename the API service, update that value and push.
 
 The API image installs Playwright Chromium, so the first build takes roughly
 10–20 minutes. The web build follows it.
@@ -68,10 +69,8 @@ The API image installs Playwright Chromium, so the first build takes roughly
 **Check:** the API's `/healthz` shows as live in the dashboard log, and
 `https://<api-host>.onrender.com/healthz` returns `{"status":"ok", ...}`.
 
-> If a deploy fails because the web service could not resolve its rewrite
-> target, open the Blueprint page and click **Manual sync** — env references
-> are resolved on a sync, and the first sync can run before the API hostname
-> exists.
+> If a referenced value is empty or stale, open the Blueprint page and click
+> **Manual sync** — `fromService` references are resolved on each sync.
 
 ---
 
