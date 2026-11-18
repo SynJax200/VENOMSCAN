@@ -1,0 +1,22 @@
+{
+  "name": "VENOMSCAN demo",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest"
+    }
+  },
+  "hostRequirements": {
+    "cpus": 2
+  },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "VENOMSCAN",
+      "visibility": "public",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "bash scripts/codespace-demo.sh prepare",
+  "postStartCommand": "bash scripts/codespace-demo.sh start"
+}
