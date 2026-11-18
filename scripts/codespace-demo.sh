@@ -37,6 +37,18 @@ require_docker() {
 
 random_hex() { openssl rand -hex "$1"; }
 
+retry() {
+  local attempts=$1
+  shift
+  local n=0
+  until "$@"; do
+    n=$((n + 1))
+    [[ $n -ge $attempts ]] && return 1
+    warn "command failed; retrying (${n}/${attempts})"
+    sleep 15
+  done
+}
+
 write_env() {
   [[ -f "$ENV_FILE" ]] && return
   say "writing ${ENV_FILE}"
@@ -134,7 +146,8 @@ start() {
   write_env
   install_nuclei
   say "starting postgres, redis, api, worker and web"
-  "${COMPOSE[@]}" up -d --remove-orphans "${SERVICES[@]}"
+  retry 3 "${COMPOSE[@]}" up -d --remove-orphans "${SERVICES[@]}" \
+    || die "compose up kept failing; rerun the script (layer cache makes retries fast)"
   wait_for_web
   seed_demo
   cat <<EOF
@@ -154,7 +167,8 @@ prepare() {
   write_env
   install_nuclei
   say "building images (first build takes roughly 10-15 minutes)"
-  "${COMPOSE[@]}" build api worker web
+  retry 3 "${COMPOSE[@]}" build api worker web \
+    || die "image build kept failing; rerun the script to resume from cached layers"
   say "prepare complete; run: bash scripts/codespace-demo.sh start"
 }
 
