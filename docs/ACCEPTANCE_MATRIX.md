@@ -284,13 +284,15 @@ so the two percentages are not comparable.
 
 ## Open verifications (not counted as requirements)
 
-1. **Real LLM provider structured completion.** Live calls reached Gemini (HTTP 200 with
-   real JSON) and the provider path is fixed for reasoning models (`LLM_MAX_TOKENS`,
-   default 4096), but the final `fallback=false` run was blocked by free-tier HTTP 429
-   quota on the supplied key. Re-run in Codespaces where the key already lives in
-   `.env.prod` (Settings → AI → Test provider, or any "AI explain").
-2. Operational: permanent hosting/VPS, public ACME certificate, key rotation after the
+1. Operational: permanent hosting/VPS, public ACME certificate, key rotation after the
    demo. None of these appear in the client PDF.
+
+**Resolved 2026-11-18 — real LLM provider structured completion.** In the Codespace demo,
+Settings → AI → Test provider returned `openai_compat · gemini-3-flash-preview answered in
+2366 ms. Structured output and grounding checks are active.`, and the AI false-positive review
+on a seeded finding came back `model grounded` with no fallback badge (`fallback=false`). The
+earlier blocker was free-tier HTTP 429 quota, not the provider path; the `LLM_MAX_TOKENS`
+reasoning-model fix stays required for the live run.
 
 ## Live evidence ledger
 
@@ -304,4 +306,6 @@ so the two percentages are not comparable.
 | 2026-11-18 | Browser E2E on production build against a local lab target |
 | 2026-11-18 | CVSS v3.1 on 6/6 findings in JSON + Markdown (lab scan) |
 | 2026-11-18 | DNS-pinned SafeHttpClient live lab scan: 23/23 checks, 6 findings |
-| 2026-11-18 | AI: provider reachable (Gemini 200 JSON, 42.6 s), truncation root cause found and fixed; quota 429 blocked final structured run |
+| 2026-11-18 | AI: provider reachable (Gemini 200 JSON, 42.6 s), truncation root cause found and fixed; quota 429 initially blocked the structured run |
+| 2026-11-18 | **Live AI provider probe** in the Codespace demo: `openai_compat · gemini-3-flash-preview` answered in 2366 ms, structured output + grounding checks active (Settings → AI → Test provider) |
+| 2026-11-18 | **Live AI analysis** in the Codespace demo: false-positive review on the seeded JWT finding returned `model grounded`, fallback=false |
