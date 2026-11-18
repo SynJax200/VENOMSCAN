@@ -17,7 +17,7 @@ services:
     name: venomscan-api
     runtime: docker
     plan: free
-    region: oregon
+    region: ohio
     dockerfilePath: ./infra/docker/Dockerfile.backend
     dockerContext: .
     healthCheckPath: /healthz
@@ -89,7 +89,7 @@ services:
     name: venomscan-web
     runtime: docker
     plan: free
-    region: oregon
+    region: ohio
     dockerfilePath: ./infra/docker/Dockerfile.web
     dockerContext: .
     healthCheckPath: /

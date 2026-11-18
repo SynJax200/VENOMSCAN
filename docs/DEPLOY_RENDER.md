@@ -20,18 +20,21 @@ use the VPS runbook in [DEPLOYMENT.md](DEPLOYMENT.md) instead.
 
 ## 1. Create the database (Neon)
 
-1. Sign in at <https://neon.com> and create a project. Pick **AWS us-west-2
-   (Oregon)** so it sits next to the Render region in the blueprint.
-2. Open **Connect** and copy the connection string. It looks like:
+1. Sign in at <https://neon.com> and create a project. Pick **AWS us-east-2
+   (Ohio)** so it sits next to the Render region in the blueprint.
+2. Open **Connect**, switch **Connection pooling** off (the API runs one
+   instance, so the direct host avoids PgBouncer prepared-statement limits),
+   and copy the connection string. It looks like:
 
    ```
-   postgresql://neondb_owner:<password>@ep-cool-name-123456.us-west-2.aws.neon.tech/neondb?sslmode=require
+   postgresql://neondb_owner:<password>@ep-cool-name-123456.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require
    ```
 
-3. Change the driver prefix from `postgresql://` to `postgresql+psycopg://`:
+3. Change the driver prefix from `postgresql://` to `postgresql+psycopg://` and
+   drop any `&channel_binding=require` parameter:
 
    ```
-   postgresql+psycopg://neondb_owner:<password>@ep-cool-name-123456.us-west-2.aws.neon.tech/neondb?sslmode=require
+   postgresql+psycopg://neondb_owner:<password>@ep-cool-name-123456.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require
    ```
 
    The `?sslmode=require` part is mandatory — Neon rejects plaintext
